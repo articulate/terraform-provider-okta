@@ -3,6 +3,7 @@ package okta
 import (
 	"fmt"
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/helper/validation"
 	"log"
 )
 
@@ -17,6 +18,7 @@ func resourcePolicies() *schema.Resource {
 			"type": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
+				ValidateFunc: validation.StringInSlice([]string{"OKTA_SIGN_ON", "PASSWORD", "MFA_ENROLL", "OAUTH_AUTHORIZATION_POLICY"}, false),
 				Description: "Policy Type: OKTA_SIGN_ON, PASSWORD, MFA_ENROLL, or OAUTH_AUTHORIZATION_POLICY",
 			},
 			"name": &schema.Schema{
@@ -44,16 +46,17 @@ func resourcePolicies() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Default:     "ACTIVE",
-				Description: "Policy Status",
+				ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
+				Description: "Policy Status: ACTIVE or INACTIVE",
 			},
 			"conditions": {
-				Type:        schema.TypeList,
+				Type:        schema.TypeSet,
 				Optional:    true,
 				Description: "Conditions that must be met during Policy Evaluation",
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"users": {
-							Type:          schema.TypeList,
+							Type:          schema.TypeSet,
 							Optional:      true,
 							Description:   "List of Users to be Included or Excluded in the Policy",
 							ConflictsWith: []string{"conditions.groups"},
@@ -77,7 +80,7 @@ func resourcePolicies() *schema.Resource {
 							},
 						},
 						"groups": {
-							Type:          schema.TypeList,
+							Type:          schema.TypeSet,
 							Optional:      true,
 							Description:   "List of Groups to be Included or Excluded in the Policy",
 							ConflictsWith: []string{"conditions.users"},
@@ -100,8 +103,8 @@ func resourcePolicies() *schema.Resource {
 								},
 							},
 						},
-						"auth_provider": {
-							Type:        schema.TypeList,
+						"authprovider": {
+							Type:        schema.TypeSet,
 							Optional:    true,
 							Description: "Authentication Provider for the Policy",
 							Elem: &schema.Resource{
@@ -110,6 +113,7 @@ func resourcePolicies() *schema.Resource {
 										Type:        schema.TypeString,
 										Optional:    true,
 										Default:     "OKTA",
+										ValidateFunc: validation.StringInSlice([]string{"OKTA", "ACTIVE_DIRECTORY"}, false),
 										Description: "Authentication Provider: OKTA or ACTIVE_DIRECTORY",
 									},
 									"include": {
@@ -117,6 +121,150 @@ func resourcePolicies() *schema.Resource {
 										Optional:    true,
 										Description: "List of Active Directory Integrations",
 										Elem:        &schema.Schema{Type: schema.TypeString},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			"settings": {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Description: "Policy Level Settings for the Particular Policy Type",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"password": {
+							Type:          schema.TypeSet,
+							Optional:      true,
+							Description:   "User Password Policies",
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"minlength": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     8,
+										Description: "Minimum password length",
+									},
+									"minlowercase": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     1,
+										ValidateFunc: validation.IntBetween(0, 1),
+										Description: "If a password must contain at least one lower case letter: 0 = no, 1 = yes",
+									},
+									"minuppercase": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     1,
+										ValidateFunc: validation.IntBetween(0, 1),
+										Description: "If a password must contain at least one upper case letter: 0 = no, 1 = yes",
+									},
+									"minnumber": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     1,
+										ValidateFunc: validation.IntBetween(0, 1),
+										Description: "If a password must contain at least one number: 0 = no, 1 = yes",
+									},
+									"minsymbol": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     1,
+										ValidateFunc: validation.IntBetween(0, 1),
+										Description: "If a password must contain at least one symbol (!@#$%^&*): 0 = no, 1 = yes",
+									},
+									"excludeusername": {
+										Type:        schema.TypeBool,
+										Optional:    true,
+										Default:     true,
+										Description: "If the user name must be excluded from the password",
+									},
+									"excludeattributes": {
+										Type:        schema.TypeList,
+										Optional:    true,
+										Description: "User profile attributes that must be excluded from the password: firstname or lastname",
+										Elem:        &schema.Schema{Type: schema.TypeString},
+									},
+									"dictionarylookup": {
+										Type:        schema.TypeBool,
+										Optional:    true,
+										Default:     false,
+										Description: "Check Passwords Against Common Password Dictionary",
+									},
+									"maxagedays": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Length in days a password is valid before expiry: 0 = no limit",
+									},
+									"expirewarndays": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Length in days a user will be warned before password expiry: 0 = no warning",
+									},
+									"minageminutes": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Minimum time interval in minutes between password changes: 0 = no limit",
+									},
+									"historycount": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Number of distinct passwords that can be created before they can be reused: 0 = none",
+									},
+									"maxlockoutattempts": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Number of unsucessful login attempts allowed before lockout: 0 = no limit",
+									},
+									"autounlockminutes": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     0,
+										Description: "Number of minutes before a locked account is unlocked: 0 = no limit",
+									},
+									"showlockoutfailures": {
+										Type:        schema.TypeBool,
+										Optional:    true,
+										Default:     false,
+										Description: "If a user should be informed when their account is locked",
+									},
+									"recoveryquestion": {
+										Type:        schema.TypeString,
+										Optional:    true,
+										Default:     "ACTIVE",
+										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
+										Description: "Enable or Disable the recovery question: ACTIVE or INACTIVE",
+									},
+									"questionminlength": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     4,
+										Description: "Min length of the password recovery question answer",
+									},
+									"recoveryemailtoken": {
+										Type:        schema.TypeInt,
+										Optional:    true,
+										Default:     10080,
+										Description: "Lifetime in minutes of the recovery email token",
+									},
+									"smsrecovery": {
+										Type:        schema.TypeString,
+										Optional:    true,
+										Default:     "INACTIVE",
+										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
+										Description: "If SMS password recovery is enabled or disabled: ACTIVE or INACTIVE",
+									},
+									"skipunlock": {
+										Type:        schema.TypeBool,
+										Optional:    true,
+										Default:     false,
+										Description: "When performing an unlock operation on an Active Directory mastered user who is locked out of Okta, the system should also attempt to unlock the user’s Windows account",
 									},
 								},
 							},
@@ -148,7 +296,7 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 			template.Priority = d.Get("priority").(int)
 			template.System = d.Get("system").(bool)
 			template.Conditions.AuthProvider.Provider = "OKTA"                    // default
-			template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // default
+			template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // default, read only
 			template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // default
 
 			newPolicy, _, err := client.Policies.CreatePolicy(template)
