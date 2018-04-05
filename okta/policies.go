@@ -349,18 +349,21 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, error) {
 	client := m.(*Config).oktaClient
 	var thisPolicy *policyType
+	thisPolicy = &policyType{System: false}
 
 	currentPolicies, _, err := client.Policies.GetPoliciesByType(d.Get("type").(string))
 	if err != nil {
 		return false, thisPolicy, err
 	}
-	for _, policy := range currentPolicies.Policies {
-		if policy.Name == d.Get("name").(string) {
-			thisPolicy = &policyType{
-				ID:     policy.ID,
-				System: policy.System,
+	if currentPolicies != nil {
+		for _, policy := range currentPolicies.Policies {
+			if policy.Name == d.Get("name").(string) {
+				thisPolicy = &policyType{
+					ID:     policy.ID,
+					System: policy.System,
+				}
+				return true, thisPolicy, nil
 			}
-			return true, thisPolicy, nil
 		}
 	}
 	return false, thisPolicy, nil
