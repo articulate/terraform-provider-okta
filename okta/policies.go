@@ -7,6 +7,11 @@ import (
 	"log"
 )
 
+type policyType struct {
+	ID     string
+	System bool
+}
+
 func resourcePolicies() *schema.Resource {
 	return &schema.Resource{
 		Create: resourcePolicyCreate,
@@ -18,19 +23,15 @@ func resourcePolicies() *schema.Resource {
 			"type": &schema.Schema{
 				Type:         schema.TypeString,
 				Required:     true,
+				ForceNew:     true,
 				ValidateFunc: validation.StringInSlice([]string{"OKTA_SIGN_ON", "PASSWORD", "MFA_ENROLL", "OAUTH_AUTHORIZATION_POLICY"}, false),
 				Description:  "Policy Type: OKTA_SIGN_ON, PASSWORD, MFA_ENROLL, or OAUTH_AUTHORIZATION_POLICY",
 			},
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
+				ForceNew:    true,
 				Description: "Policy Name",
-			},
-			"system": &schema.Schema{
-				Type:        schema.TypeBool,
-				Optional:    true,
-				Default:     false,
-				Description: "Set to true if Policy is a System Policy",
 			},
 			"description": &schema.Schema{
 				Type:        schema.TypeString,
@@ -238,7 +239,7 @@ func resourcePolicies() *schema.Resource {
 func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Creating Policy %v", d.Get("name").(string))
 
-	exists, _, err := policyExists(d, m)
+	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
 		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
@@ -247,13 +248,13 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 	} else {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			policyPassword("", "create", d, m)
+			policyPassword(thisPolicy, "create", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			policySignOn("", "create", d, m)
+			policySignOn(thisPolicy, "create", d, m)
 			if err != nil {
 				return err
 			}
@@ -291,20 +292,20 @@ func resourcePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Update Policy %v", d.Get("name").(string))
 	d.Partial(true)
 
-	exists, id, err := policyExists(d, m)
+	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
 		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
 	if exists == true {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			policyPassword(id, "create", d, m)
+			policyPassword(thisPolicy, "create", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			policySignOn("id", "create", d, m)
+			policySignOn(thisPolicy, "create", d, m)
 			if err != nil {
 				return err
 			}
@@ -327,12 +328,12 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Delete Policy %v", d.Get("name").(string))
 	client := m.(*Config).oktaClient
 
-	exists, id, err := policyExists(d, m)
+	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
 		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
 	if exists == true {
-		_, err = client.Policies.DeletePolicy(id)
+		_, err = client.Policies.DeletePolicy(thisPolicy.ID)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Deleting Policy from Okta: %v", err)
 		}
@@ -345,19 +346,24 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func policyExists(d *schema.ResourceData, m interface{}) (bool, string, error) {
+func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, error) {
 	client := m.(*Config).oktaClient
+	var thisPolicy *policyType
 
 	currentPolicies, _, err := client.Policies.GetPoliciesByType(d.Get("type").(string))
 	if err != nil {
-		return false, "", err
+		return false, thisPolicy, err
 	}
 	for _, policy := range currentPolicies.Policies {
 		if policy.Name == d.Get("name").(string) {
-			return true, policy.ID, nil
+			thisPolicy = &policyType{
+				ID:     policy.ID,
+				System: policy.System,
+			}
+			return true, thisPolicy, nil
 		}
 	}
-	return false, "", nil
+	return false, thisPolicy, nil
 }
 
 func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
@@ -378,7 +384,7 @@ func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-func policyPassword(id string, action string, d *schema.ResourceData, m interface{}) error {
+func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.PasswordPolicy()
@@ -387,7 +393,11 @@ func policyPassword(id string, action string, d *schema.ResourceData, m interfac
 	template.Type = d.Get("type").(string)
 	template.Status = d.Get("status").(string)
 	template.Priority = d.Get("priority").(int)
-	template.System = d.Get("system").(bool)
+	if thisPolicy.System == true {
+		template.System = true
+	} else {
+		template.System = false
+	}
 	template.Conditions.AuthProvider.Provider = "OKTA"                    // default
 	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // default, read only
 	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // defaulta
@@ -418,7 +428,7 @@ func policyPassword(id string, action string, d *schema.ResourceData, m interfac
 		}
 
 	case "update":
-		policy, _, err := client.Policies.UpdatePolicy(id, template)
+		policy, _, err := client.Policies.UpdatePolicy(thisPolicy.ID, template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy: %v", err)
 		}
@@ -435,7 +445,7 @@ func policyPassword(id string, action string, d *schema.ResourceData, m interfac
 	return nil
 }
 
-func policySignOn(id string, action string, d *schema.ResourceData, m interface{}) error {
+func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.SignOnPolicy()
@@ -444,7 +454,11 @@ func policySignOn(id string, action string, d *schema.ResourceData, m interface{
 	template.Type = d.Get("type").(string)
 	template.Status = d.Get("status").(string)
 	template.Priority = d.Get("priority").(int)
-	template.System = d.Get("system").(bool)
+	if thisPolicy.System == true {
+		template.System = true
+	} else {
+		template.System = false
+	}
 
 	switch action {
 	case "create":
@@ -460,7 +474,7 @@ func policySignOn(id string, action string, d *schema.ResourceData, m interface{
 		}
 
 	case "update":
-		policy, _, err := client.Policies.UpdatePolicy(id, template)
+		policy, _, err := client.Policies.UpdatePolicy(thisPolicy.ID, template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy: %v", err)
 		}
