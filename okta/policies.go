@@ -380,10 +380,8 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 	} else {
 		template.System = false
 	}
-	template.Conditions.AuthProvider.Provider = "OKTA"                    // okta required default
-	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // okta required default
-	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
 
+	template.Conditions.AuthProvider.Provider = "OKTA" // okta required default
 	if len(d.Get("conditions").([]interface{})) > 0 {
 		if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
 			groups := d.Get("conditions.0.groups").([]interface{})
@@ -414,6 +412,16 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Settings.Password.Lockout.MaxAttempts = d.Get("settings.0.password.0.maxlockoutattempts").(int)
 		template.Settings.Password.Lockout.AutoUnlockMinutes = d.Get("settings.0.password.0.autounlockminutes").(int)
 		template.Settings.Password.Lockout.ShowLockoutFailures = d.Get("settings.0.password.0.showlockoutfailures").(bool)
+		if d.Get("settings.0.password.0.recoveryquestion").(string) != "" {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Status = d.Get("settings.0.password.0.recoveryquestion").(string)
+		} else {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
+		}
+		template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = d.Get("settings.0.password.0.questionminlength").(int)
+		template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE" // okta required & read-only default
+		template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = d.Get("settings.0.password.0.recoveryemailtoken").(int)
+		template.Settings.Recovery.Factors.OktaSms.Status = d.Get("settings.0.password.0.smsrecovery").(string)
+		template.Settings.Delegation.Options.SkipUnlock = d.Get("settings.0.password.0.skipunlock").(bool)
 	}
 
 	//return fmt.Errorf("%+v", template)
