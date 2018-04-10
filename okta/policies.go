@@ -8,8 +8,10 @@ import (
 )
 
 type policyType struct {
-	ID     string
-	System bool
+	ID          string
+	Description string
+	Priority    int
+	System      bool
 }
 
 func resourcePolicies() *schema.Resource {
@@ -245,6 +247,13 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 			return fmt.Errorf("[ERROR] Oath Auth Policy not supported in this terraform provider at this time")
 		}
 	}
+	if thisPolicy.System == true {
+		log.Printf("[INFO] Policy %v is a System Policy, running Resource Policy Update.", d.Get("name").(string))
+		err = resourcePolicyUpdate(d, m)
+		if err != nil {
+			return err
+		}
+	}
 	// add the policy resource to terraform
 	d.SetId(d.Get("name").(string))
 
@@ -312,15 +321,19 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
 	if exists == true {
-		_, err = client.Policies.DeletePolicy(thisPolicy.ID)
-		if err != nil {
-			return fmt.Errorf("[ERROR] Error Deleting Policy from Okta: %v", err)
+		if thisPolicy.System == true {
+			log.Printf("[INFO] Policy %v is a System Policy, cannot delete from Okta", d.Get("name").(string))
+		} else {
+			_, err = client.Policies.DeletePolicy(thisPolicy.ID)
+			if err != nil {
+				return fmt.Errorf("[ERROR] Error Deleting Policy from Okta: %v", err)
+			}
 		}
-		// delete the policy resource from terraform
-		d.SetId("")
 	} else {
 		return fmt.Errorf("[ERROR] Error Policy not found in Okta: %v", err)
 	}
+	// remove the policy resource from terraform
+	d.SetId("")
 
 	return nil
 }
@@ -338,14 +351,43 @@ func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, err
 		for _, policy := range currentPolicies.Policies {
 			if policy.Name == d.Get("name").(string) {
 				thisPolicy = &policyType{
-					ID:     policy.ID,
-					System: policy.System,
+					ID:          policy.ID,
+					Description: policy.Description,
+					Priority:    policy.Priority,
+					System:      policy.System,
 				}
 				return true, thisPolicy, nil
 			}
 		}
 	}
 	return false, thisPolicy, nil
+}
+
+func getEveryoneGroup(m interface{}) (string, error) {
+	client := m.(*Config).oktaClient
+	groups, _, err := client.Groups.ListGroups("q=Everyone")
+	if err != nil {
+		return "error", fmt.Errorf("[ERROR] ListGroups Error getting Everyone Group ID: %v", err)
+	}
+	if len(groups.Groups) > 1 {
+		return "error", fmt.Errorf("[ERROR] Query for Everyone Default Group resulted in more than one group.")
+	}
+	return groups.Groups[0].ID, nil
+}
+
+func policyConditions(d *schema.ResourceData, m interface{}) ([]string, error) {
+	groups := make([]string, 0)
+	if len(d.Get("conditions").([]interface{})) > 0 {
+		if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
+			for _, vals := range d.Get("conditions.0.groups").([]interface{}) {
+				groups = append(groups, vals.(string))
+			}
+		}
+		if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
+			return nil, fmt.Errorf("[ERROR] Active Directory Auth Provider not supported in this terraform provider at this time")
+		}
+	}
+	return groups, nil
 }
 
 func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
@@ -371,31 +413,33 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 
 	template := client.Policies.PasswordPolicy()
 	template.Name = d.Get("name").(string)
-	template.Description = d.Get("description").(string)
 	template.Type = d.Get("type").(string)
-	template.Status = d.Get("status").(string)
-	template.Priority = d.Get("priority").(int)
 	if thisPolicy.System == true {
-		template.System = true
+		template.Status = "ACTIVE"
+		template.Description = thisPolicy.Description
+		template.Priority = thisPolicy.Priority
+
+		everyone, err := getEveryoneGroup(m)
+		if err != nil {
+			return err
+		}
+		template.Conditions.People.Groups.Include = []string{everyone}
+
 	} else {
-		template.System = false
+		template.Description = d.Get("description").(string)
+		template.Priority = d.Get("priority").(int)
+		template.Status = d.Get("status").(string)
+
+		groups, err := policyConditions(d, m)
+		if err != nil {
+			return err
+		}
+		template.Conditions.People.Groups.Include = groups
 	}
 
-	template.Conditions.AuthProvider.Provider = "OKTA" // okta required default
-	if len(d.Get("conditions").([]interface{})) > 0 {
-		if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
-			groups := d.Get("conditions.0.groups").([]interface{})
-			include := make([]string, len(groups))
-			for _, vals := range groups {
-				include = append(include, vals.(string))
-			}
-			//template.Conditions.People.Groups.Include = include
-			//return fmt.Errorf("%+v", include)
-		}
-		if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
-			// TODO: add authprovider Active Directory support
-		}
-	}
+	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
+	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // okta required & read-only default
+
 	if len(d.Get("settings.0.password").([]interface{})) > 0 {
 		template.Settings.Password.Complexity.MinLength = d.Get("settings.0.password.0.minlength").(int)
 		template.Settings.Password.Complexity.MinLowerCase = d.Get("settings.0.password.0.minlowercase").(int)
@@ -403,7 +447,13 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Settings.Password.Complexity.MinNumber = d.Get("settings.0.password.0.minnumber").(int)
 		template.Settings.Password.Complexity.MinSymbol = d.Get("settings.0.password.0.minsymbol").(int)
 		template.Settings.Password.Complexity.ExcludeUsername = d.Get("settings.0.password.0.excludeusername").(bool)
-		//template.Settings.Password.Complexity.ExcludeAttributes = d.Get("settings.0.password.0.excludeattributes").list!
+		if len(d.Get("settings.0.password.0.excludeattributes").([]interface{})) > 0 {
+			exclude := make([]string, 0)
+			for _, vals := range d.Get("settings.0.password.0.excludeattributes").([]interface{}) {
+				exclude = append(exclude, vals.(string))
+			}
+			template.Settings.Password.Complexity.ExcludeAttributes = exclude
+		}
 		template.Settings.Password.Complexity.Dictionary.Common.Exclude = d.Get("settings.0.password.0.dictionarylookup").(bool)
 		template.Settings.Password.Age.MaxAgeDays = d.Get("settings.0.password.0.maxagedays").(int)
 		template.Settings.Password.Age.ExpireWarnDays = d.Get("settings.0.password.0.expirewarndays").(int)
@@ -414,17 +464,12 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Settings.Password.Lockout.ShowLockoutFailures = d.Get("settings.0.password.0.showlockoutfailures").(bool)
 		if d.Get("settings.0.password.0.recoveryquestion").(string) != "" {
 			template.Settings.Recovery.Factors.RecoveryQuestion.Status = d.Get("settings.0.password.0.recoveryquestion").(string)
-		} else {
-			template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
 		}
 		template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = d.Get("settings.0.password.0.questionminlength").(int)
-		template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE" // okta required & read-only default
 		template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = d.Get("settings.0.password.0.recoveryemailtoken").(int)
 		template.Settings.Recovery.Factors.OktaSms.Status = d.Get("settings.0.password.0.smsrecovery").(string)
 		template.Settings.Delegation.Options.SkipUnlock = d.Get("settings.0.password.0.skipunlock").(bool)
 	}
-
-	//return fmt.Errorf("%+v", template)
 
 	switch action {
 	case "create":
@@ -446,9 +491,11 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		err = policyActivate(policy.ID, d, m)
-		if err != nil {
-			return err
+		if thisPolicy.System == false {
+			err = policyActivate(policy.ID, d, m)
+			if err != nil {
+				return err
+			}
 		}
 
 	default:
@@ -462,14 +509,28 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 
 	template := client.Policies.SignOnPolicy()
 	template.Name = d.Get("name").(string)
-	template.Description = d.Get("description").(string)
 	template.Type = d.Get("type").(string)
-	template.Status = d.Get("status").(string)
-	template.Priority = d.Get("priority").(int)
 	if thisPolicy.System == true {
-		template.System = true
+		template.Status = "ACTIVE"
+		template.Description = thisPolicy.Description
+		template.Priority = thisPolicy.Priority
+
+		everyone, err := getEveryoneGroup(m)
+		if err != nil {
+			return err
+		}
+		template.Conditions.People.Groups.Include = []string{everyone}
+
 	} else {
-		template.System = false
+		template.Description = d.Get("description").(string)
+		template.Priority = d.Get("priority").(int)
+		template.Status = d.Get("status").(string)
+
+		groups, err := policyConditions(d, m)
+		if err != nil {
+			return err
+		}
+		template.Conditions.People.Groups.Include = groups
 	}
 
 	switch action {
@@ -492,9 +553,11 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		err = policyActivate(policy.ID, d, m)
-		if err != nil {
-			return err
+		if thisPolicy.System == false {
+			err = policyActivate(policy.ID, d, m)
+			if err != nil {
+				return err
+			}
 		}
 
 	default:
