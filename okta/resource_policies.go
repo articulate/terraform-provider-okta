@@ -113,7 +113,7 @@ func resourcePolicies() *schema.Resource {
 										Type:         schema.TypeString,
 										Optional:     true,
 										ValidateFunc: validation.StringInSlice([]string{"OKTA", "ACTIVE_DIRECTORY"}, false),
-										Description:  "Authentication Provider: OKTA or ACTIVE_DIRECTORY. Okta default = OKTA",
+										Description:  "Authentication Provider: OKTA or ACTIVE_DIRECTORY. Default = OKTA",
 									},
 									"include": {
 										Type:        schema.TypeList,
@@ -142,36 +142,36 @@ func resourcePolicies() *schema.Resource {
 									"minlength": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Minimum password length. Okta default = 8",
+										Description: "Minimum password length. Default = 8",
 									},
 									"minlowercase": {
 										Type:         schema.TypeInt,
 										Optional:     true,
 										ValidateFunc: validation.IntBetween(0, 1),
-										Description:  "If a password must contain at least one lower case letter: 0 = no, 1 = yes. Okta default = 1",
+										Description:  "If a password must contain at least one lower case letter: 0 = no, 1 = yes. Default = 1",
 									},
 									"minuppercase": {
 										Type:         schema.TypeInt,
 										Optional:     true,
 										ValidateFunc: validation.IntBetween(0, 1),
-										Description:  "If a password must contain at least one upper case letter: 0 = no, 1 = yes. Okta default = 1",
+										Description:  "If a password must contain at least one upper case letter: 0 = no, 1 = yes. Default = 1",
 									},
 									"minnumber": {
 										Type:         schema.TypeInt,
 										Optional:     true,
 										ValidateFunc: validation.IntBetween(0, 1),
-										Description:  "If a password must contain at least one number: 0 = no, 1 = yes. Okta default = 1",
+										Description:  "If a password must contain at least one number: 0 = no, 1 = yes. Default = 1",
 									},
 									"minsymbol": {
 										Type:         schema.TypeInt,
 										Optional:     true,
 										ValidateFunc: validation.IntBetween(0, 1),
-										Description:  "If a password must contain at least one symbol (!@#$%^&*): 0 = no, 1 = yes. Okta default = 1",
+										Description:  "If a password must contain at least one symbol (!@#$%^&*): 0 = no, 1 = yes. Default = 1",
 									},
 									"excludeusername": {
 										Type:        schema.TypeBool,
 										Optional:    true,
-										Description: "If the user name must be excluded from the password. Okta default = true",
+										Description: "If the user name must be excluded from the password. Default = true",
 									},
 									"excludeattributes": {
 										Type:        schema.TypeList,
@@ -182,69 +182,69 @@ func resourcePolicies() *schema.Resource {
 									"dictionarylookup": {
 										Type:        schema.TypeBool,
 										Optional:    true,
-										Description: "Check Passwords Against Common Password Dictionary. Okta default = false",
+										Description: "Check Passwords Against Common Password Dictionary. Default = false",
 									},
 									"maxagedays": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Length in days a password is valid before expiry: 0 = no limit. Okta default = 0",
+										Description: "Length in days a password is valid before expiry: 0 = no limit. Default = 0",
 									},
 									"expirewarndays": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Length in days a user will be warned before password expiry: 0 = no warning. Okta default = 0",
+										Description: "Length in days a user will be warned before password expiry: 0 = no warning. Default = 0",
 									},
 									"minageminutes": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Minimum time interval in minutes between password changes: 0 = no limit. Okta default = 0",
+										Description: "Minimum time interval in minutes between password changes: 0 = no limit. Default = 0",
 									},
 									"historycount": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Number of distinct passwords that can be created before they can be reused: 0 = none. Okta default = 0",
+										Description: "Number of distinct passwords that can be created before they can be reused: 0 = none. Default = 0",
 									},
 									"maxlockoutattempts": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Number of unsucessful login attempts allowed before lockout: 0 = no limit. Okta default = 0",
+										Description: "Number of unsucessful login attempts allowed before lockout: 0 = no limit. Default = 0",
 									},
 									"autounlockminutes": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Number of minutes before a locked account is unlocked: 0 = no limit. Okta default = 0",
+										Description: "Number of minutes before a locked account is unlocked: 0 = no limit. Default = 0",
 									},
 									"showlockoutfailures": {
 										Type:        schema.TypeBool,
 										Optional:    true,
-										Description: "If a user should be informed when their account is locked. Okta default = false",
+										Description: "If a user should be informed when their account is locked. Default = false",
 									},
 									"recoveryquestion": {
 										Type:         schema.TypeString,
 										Optional:     true,
 										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
-										Description:  "Enable or Disable the recovery question: ACTIVE or INACTIVE. Okta default = ACTIVE",
+										Description:  "Enable or Disable the recovery question: ACTIVE or INACTIVE. Default = ACTIVE",
 									},
 									"questionminlength": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Min length of the password recovery question answer. Okta default = 4",
+										Description: "Min length of the password recovery question answer. Default = 4",
 									},
 									"recoveryemailtoken": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Lifetime in minutes of the recovery email token. Okta default = 10080",
+										Description: "Lifetime in minutes of the recovery email token. Default = 10080",
 									},
 									"smsrecovery": {
 										Type:         schema.TypeString,
 										Optional:     true,
 										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
-										Description:  "If SMS password recovery is enabled or disabled: ACTIVE or INACTIVE. Okta default = INACTIVE",
+										Description:  "If SMS password recovery is enabled or disabled: ACTIVE or INACTIVE. Default = INACTIVE",
 									},
 									"skipunlock": {
 										Type:        schema.TypeBool,
 										Optional:    true,
-										Description: "When performing an unlock operation on an Active Directory mastered user who is locked out of Okta, the system should also attempt to unlock the user’s Windows account. Okta default = false",
+										Description: "When an Active Directory user is locked out of Okta, the Okta unlock operation should also attempt to unlock the user's Windows account. Default = false",
 									},
 								},
 							},
@@ -417,7 +417,7 @@ func getEveryoneGroup(m interface{}) (string, error) {
 }
 
 // populate policy conditions with the terraform schema conditions fields
-func policyConditions(d *schema.ResourceData, m interface{}) ([]string, error) {
+func policyConditions(d *schema.ResourceData) ([]string, error) {
 	groups := make([]string, 0)
 	if len(d.Get("conditions").([]interface{})) > 0 {
 		if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
@@ -474,7 +474,7 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Priority = d.Get("priority").(int)
 		template.Status = d.Get("status").(string)
 
-		groups, err := policyConditions(d, m)
+		groups, err := policyConditions(d)
 		if err != nil {
 			return err
 		}
@@ -645,7 +645,7 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 		template.Priority = d.Get("priority").(int)
 		template.Status = d.Get("status").(string)
 
-		groups, err := policyConditions(d, m)
+		groups, err := policyConditions(d)
 		if err != nil {
 			return err
 		}
