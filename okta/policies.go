@@ -7,6 +7,7 @@ import (
 	"log"
 )
 
+// fields retrieved from the policy in Okta & referenced in our resource functions
 type policyType struct {
 	ID          string
 	Description string
@@ -21,18 +22,56 @@ func resourcePolicies() *schema.Resource {
 		Update: resourcePolicyUpdate,
 		Delete: resourcePolicyDelete,
 
+		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
+			// user cannot change name or type for an existing policy
+			prev, _ := d.GetChange("name")
+			if prev.(string) != "" {
+				if d.HasChange("type") || d.HasChange("name") {
+					return fmt.Errorf("You cannot change the name field or type field of an existing Policy")
+				}
+			}
+
+			// add custom error messages if user supplies options not supported by the policy
+			switch d.Get("type").(string) {
+			case "PASSWORD":
+
+			case "OKTA_SIGN_ON":
+				if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
+					return fmt.Errorf("authprovider condition options not supported in the Okta SignOn Policy")
+				}
+				if len(d.Get("settings.0.password").([]interface{})) > 0 {
+					return fmt.Errorf("password settings options not supported in the Okta SignOn Policy")
+				}
+
+			case "MFA_ENROLL":
+
+			case "OAUTH_AUTHORIZATION_POLICY":
+
+			}
+
+			// password settings option excludeattributes only supports "firstName" and/or "lastName"
+			// ValidateFunc currently not supported in terraform for list types so we'll add our check here
+			if d.HasChange("settings.0.password.0.excludeattributes") {
+				for _, vals := range d.Get("settings.0.password.0.excludeattributes").([]interface{}) {
+					if vals.(string) != "firstName" || vals.(string) != "lastName" {
+						return fmt.Errorf("accepted values for excludeattributes password settings are \"firstName\" and/or \"lastName\"")
+					}
+				}
+			}
+
+			return nil
+		},
+
 		Schema: map[string]*schema.Schema{
 			"type": &schema.Schema{
 				Type:         schema.TypeString,
 				Required:     true,
-				ForceNew:     true,
 				ValidateFunc: validation.StringInSlice([]string{"OKTA_SIGN_ON", "PASSWORD", "MFA_ENROLL", "OAUTH_AUTHORIZATION_POLICY"}, false),
 				Description:  "Policy Type: OKTA_SIGN_ON, PASSWORD, MFA_ENROLL, or OAUTH_AUTHORIZATION_POLICY",
 			},
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				ForceNew:    true,
 				Description: "Policy Name",
 			},
 			"description": &schema.Schema{
@@ -74,7 +113,7 @@ func resourcePolicies() *schema.Resource {
 										Type:         schema.TypeString,
 										Optional:     true,
 										ValidateFunc: validation.StringInSlice([]string{"OKTA", "ACTIVE_DIRECTORY"}, false),
-										Description:  "Authentication Provider: OKTA or ACTIVE_DIRECTORY, Active Directory currently unsupported. Okta default = OKTA",
+										Description:  "Authentication Provider: OKTA or ACTIVE_DIRECTORY. Okta default = OKTA",
 									},
 									"include": {
 										Type:        schema.TypeList,
@@ -137,7 +176,7 @@ func resourcePolicies() *schema.Resource {
 									"excludeattributes": {
 										Type:        schema.TypeList,
 										Optional:    true,
-										Description: "User profile attributes that must be excluded from the password: allowed values = \"firstname\" and/or \"lastname\"",
+										Description: "User profile attributes that must be excluded from the password: allowed values = \"firstName\" and/or \"lastName\"",
 										Elem:        &schema.Schema{Type: schema.TypeString},
 									},
 									"dictionarylookup": {
@@ -222,7 +261,7 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 
 	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
-		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return err
 	}
 	if exists == true {
 		log.Printf("[INFO] Policy %v already exists in Okta. Adding to Terraform.", d.Get("name").(string))
@@ -265,7 +304,7 @@ func resourcePolicyRead(d *schema.ResourceData, m interface{}) error {
 
 	exists, _, err := policyExists(d, m)
 	if err != nil {
-		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return err
 	}
 	if exists == false {
 		// if the policy does not exist in okta, delete from terraform state
@@ -282,7 +321,7 @@ func resourcePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 
 	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
-		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return err
 	}
 	if exists == true {
 		switch d.Get("type").(string) {
@@ -318,7 +357,7 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 
 	exists, thisPolicy, err := policyExists(d, m)
 	if err != nil {
-		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return err
 	}
 	if exists == true {
 		if thisPolicy.System == true {
@@ -338,6 +377,7 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+// check if policy exists in Okta & return a struct of policy fields we'll reference during apply
 func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, error) {
 	client := m.(*Config).oktaClient
 	var thisPolicy *policyType
@@ -345,7 +385,7 @@ func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, err
 
 	currentPolicies, _, err := client.Policies.GetPoliciesByType(d.Get("type").(string))
 	if err != nil {
-		return false, thisPolicy, err
+		return false, thisPolicy, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
 	if currentPolicies != nil {
 		for _, policy := range currentPolicies.Policies {
@@ -363,11 +403,12 @@ func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, err
 	return false, thisPolicy, nil
 }
 
+// system default policies use the Everyone group in the groups condition include, get that group ID
 func getEveryoneGroup(m interface{}) (string, error) {
 	client := m.(*Config).oktaClient
 	groups, _, err := client.Groups.ListGroups("q=Everyone")
 	if err != nil {
-		return "error", fmt.Errorf("[ERROR] ListGroups Error getting Everyone Group ID: %v", err)
+		return "error", fmt.Errorf("[ERROR] ListGroups Error querying Everyone Group ID: %v", err)
 	}
 	if len(groups.Groups) > 1 {
 		return "error", fmt.Errorf("[ERROR] Query for Everyone Default Group resulted in more than one group.")
@@ -375,6 +416,7 @@ func getEveryoneGroup(m interface{}) (string, error) {
 	return groups.Groups[0].ID, nil
 }
 
+// populate policy conditions with the terraform schema conditions fields
 func policyConditions(d *schema.ResourceData, m interface{}) ([]string, error) {
 	groups := make([]string, 0)
 	if len(d.Get("conditions").([]interface{})) > 0 {
@@ -384,12 +426,13 @@ func policyConditions(d *schema.ResourceData, m interface{}) ([]string, error) {
 			}
 		}
 		if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
-			return nil, fmt.Errorf("[ERROR] Active Directory Auth Provider not supported in this terraform provider at this time")
+			return groups, fmt.Errorf("[ERROR] Active Directory Auth Provider not supported in this terraform provider at this time")
 		}
 	}
 	return groups, nil
 }
 
+// activate or deactivate a policy according to the terraform schema status field
 func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
@@ -408,6 +451,7 @@ func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+// create or update a password policy
 func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
@@ -437,16 +481,40 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Conditions.People.Groups.Include = groups
 	}
 
-	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
-	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // okta required & read-only default
-
+	// if our password settings schema fields are undefined, use the Okta defaults
+	// we add the defaults here & not in the schema map to avoid defaults appearing in the terraform plan diff
+	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE" // okta required & read-only default
 	if len(d.Get("settings.0.password").([]interface{})) > 0 {
-		template.Settings.Password.Complexity.MinLength = d.Get("settings.0.password.0.minlength").(int)
-		template.Settings.Password.Complexity.MinLowerCase = d.Get("settings.0.password.0.minlowercase").(int)
-		template.Settings.Password.Complexity.MinUpperCase = d.Get("settings.0.password.0.minuppercase").(int)
-		template.Settings.Password.Complexity.MinNumber = d.Get("settings.0.password.0.minnumber").(int)
-		template.Settings.Password.Complexity.MinSymbol = d.Get("settings.0.password.0.minsymbol").(int)
-		template.Settings.Password.Complexity.ExcludeUsername = d.Get("settings.0.password.0.excludeusername").(bool)
+		if minlength, ok := d.GetOk("settings.0.password.0.minlength"); ok {
+			template.Settings.Password.Complexity.MinLength = minlength.(int)
+		} else {
+			template.Settings.Password.Complexity.MinLength = 8
+		}
+		if minlowercase, ok := d.GetOk("settings.0.password.0.minlowercase"); ok {
+			template.Settings.Password.Complexity.MinLowerCase = minlowercase.(int)
+		} else {
+			template.Settings.Password.Complexity.MinLowerCase = 1
+		}
+		if minuppercase, ok := d.GetOk("settings.0.password.0.minuppercase"); ok {
+			template.Settings.Password.Complexity.MinUpperCase = minuppercase.(int)
+		} else {
+			template.Settings.Password.Complexity.MinUpperCase = 1
+		}
+		if minnumber, ok := d.GetOk("settings.0.password.0.minnumber"); ok {
+			template.Settings.Password.Complexity.MinNumber = minnumber.(int)
+		} else {
+			template.Settings.Password.Complexity.MinNumber = 1
+		}
+		if minsymbol, ok := d.GetOk("settings.0.password.0.minsymbol"); ok {
+			template.Settings.Password.Complexity.MinSymbol = minsymbol.(int)
+		} else {
+			template.Settings.Password.Complexity.MinSymbol = 1
+		}
+		if excludeusername, ok := d.GetOk("settings.0.password.0.excludeusername"); ok {
+			template.Settings.Password.Complexity.ExcludeUsername = excludeusername.(bool)
+		} else {
+			template.Settings.Password.Complexity.ExcludeUsername = true
+		}
 		if len(d.Get("settings.0.password.0.excludeattributes").([]interface{})) > 0 {
 			exclude := make([]string, 0)
 			for _, vals := range d.Get("settings.0.password.0.excludeattributes").([]interface{}) {
@@ -454,21 +522,71 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 			}
 			template.Settings.Password.Complexity.ExcludeAttributes = exclude
 		}
-		template.Settings.Password.Complexity.Dictionary.Common.Exclude = d.Get("settings.0.password.0.dictionarylookup").(bool)
-		template.Settings.Password.Age.MaxAgeDays = d.Get("settings.0.password.0.maxagedays").(int)
-		template.Settings.Password.Age.ExpireWarnDays = d.Get("settings.0.password.0.expirewarndays").(int)
-		template.Settings.Password.Age.MinAgeMinutes = d.Get("settings.0.password.0.minageminutes").(int)
-		template.Settings.Password.Age.HistoryCount = d.Get("settings.0.password.0.historycount").(int)
-		template.Settings.Password.Lockout.MaxAttempts = d.Get("settings.0.password.0.maxlockoutattempts").(int)
-		template.Settings.Password.Lockout.AutoUnlockMinutes = d.Get("settings.0.password.0.autounlockminutes").(int)
-		template.Settings.Password.Lockout.ShowLockoutFailures = d.Get("settings.0.password.0.showlockoutfailures").(bool)
-		if d.Get("settings.0.password.0.recoveryquestion").(string) != "" {
-			template.Settings.Recovery.Factors.RecoveryQuestion.Status = d.Get("settings.0.password.0.recoveryquestion").(string)
+		if dictionarylookup, ok := d.GetOk("settings.0.password.0.dictionarylookup"); ok {
+			template.Settings.Password.Complexity.Dictionary.Common.Exclude = dictionarylookup.(bool)
+		} else {
+			template.Settings.Password.Complexity.Dictionary.Common.Exclude = false
 		}
-		template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = d.Get("settings.0.password.0.questionminlength").(int)
-		template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = d.Get("settings.0.password.0.recoveryemailtoken").(int)
-		template.Settings.Recovery.Factors.OktaSms.Status = d.Get("settings.0.password.0.smsrecovery").(string)
-		template.Settings.Delegation.Options.SkipUnlock = d.Get("settings.0.password.0.skipunlock").(bool)
+		if maxagedays, ok := d.GetOk("settings.0.password.0.maxagedays"); ok {
+			template.Settings.Password.Age.MaxAgeDays = maxagedays.(int)
+		} else {
+			template.Settings.Password.Age.MaxAgeDays = 0
+		}
+		if expirewarndays, ok := d.GetOk("settings.0.password.0.expirewarndays"); ok {
+			template.Settings.Password.Age.ExpireWarnDays = expirewarndays.(int)
+		} else {
+			template.Settings.Password.Age.ExpireWarnDays = 0
+		}
+		if minageminutes, ok := d.GetOk("settings.0.password.0.minageminutes"); ok {
+			template.Settings.Password.Age.MinAgeMinutes = minageminutes.(int)
+		} else {
+			template.Settings.Password.Age.MinAgeMinutes = 0
+		}
+		if historycount, ok := d.GetOk("settings.0.password.0.historycount"); ok {
+			template.Settings.Password.Age.HistoryCount = historycount.(int)
+		} else {
+			template.Settings.Password.Age.HistoryCount = 0
+		}
+		if maxlockoutattempts, ok := d.GetOk("settings.0.password.0.maxlockoutattempts"); ok {
+			template.Settings.Password.Lockout.MaxAttempts = maxlockoutattempts.(int)
+		} else {
+			template.Settings.Password.Lockout.MaxAttempts = 0
+		}
+		if autounlockminutes, ok := d.GetOk("settings.0.password.0.autounlockminutes"); ok {
+			template.Settings.Password.Lockout.AutoUnlockMinutes = autounlockminutes.(int)
+		} else {
+			template.Settings.Password.Lockout.AutoUnlockMinutes = 0
+		}
+		if showlockoutfailures, ok := d.GetOk("settings.0.password.0.showlockoutfailures"); ok {
+			template.Settings.Password.Lockout.ShowLockoutFailures = showlockoutfailures.(bool)
+		} else {
+			template.Settings.Password.Lockout.ShowLockoutFailures = false
+		}
+		if recoveryquestion, ok := d.GetOk("settings.0.password.0.recoveryquestion"); ok {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Status = recoveryquestion.(string)
+		} else {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE"
+		}
+		if questionminlength, ok := d.GetOk("settings.0.password.0.questionminlength"); ok {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = questionminlength.(int)
+		} else {
+			template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = 4
+		}
+		if recoveryemailtoken, ok := d.GetOk("settings.0.password.0.recoveryemailtoken"); ok {
+			template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = recoveryemailtoken.(int)
+		} else {
+			template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = 10080
+		}
+		if smsrecovery, ok := d.GetOk("settings.0.password.0.smsrecovery"); ok {
+			template.Settings.Recovery.Factors.OktaSms.Status = smsrecovery.(string)
+		} else {
+			template.Settings.Recovery.Factors.OktaSms.Status = "INACTIVE"
+		}
+		if skipunlock, ok := d.GetOk("settings.0.password.0.skipunlock"); ok {
+			template.Settings.Delegation.Options.SkipUnlock = skipunlock.(bool)
+		} else {
+			template.Settings.Delegation.Options.SkipUnlock = false
+		}
 	}
 
 	switch action {
@@ -504,6 +622,7 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 	return nil
 }
 
+// create or update a signon policy
 func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
