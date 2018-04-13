@@ -676,4 +676,3 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 	}
 	return nil
 }
-
