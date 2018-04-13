@@ -10,35 +10,11 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-func TestAccOktaPoviderSignOn_create(t *testing.T) {
-	ri := acctest.RandInt()
-	config := testOktaPoviderSignOn(ri)
-	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testOktaProviderDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: config,
-				Check: resource.ComposeTestCheckFunc(
-					testOktaProviderExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
-					resource.TestCheckResourceAttr(resourceName, "name", "testAcc"),
-					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
-					resource.TestCheckResourceAttr(resourceName, "description", "Terraform Acceptance Test SignOn Policy"),
-				),
-			},
-		},
-	})
-}
-
-func TestAccOktaPoviderSignOn_update(t *testing.T) {
+func TestAccOktaPoviderSignOn(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPoviderSignOn(ri)
 	updatedConfig := testOktaPoviderSignOn_updated(ri)
-	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+	resourceName := "okta_policies.testSignOn-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -50,7 +26,7 @@ func TestAccOktaPoviderSignOn_update(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testOktaProviderExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
-					resource.TestCheckResourceAttr(resourceName, "name", "testAcc"),
+					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
 					resource.TestCheckResourceAttr(resourceName, "description", "Terraform Acceptance Test SignOn Policy"),
 				),
@@ -60,10 +36,66 @@ func TestAccOktaPoviderSignOn_update(t *testing.T) {
 				Check: resource.ComposeTestCheckFunc(
 					testOktaProviderExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
-					resource.TestCheckResourceAttr(resourceName, "name", "testAcc"),
+					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "status", "INACTIVE"),
 					resource.TestCheckResourceAttr(resourceName, "priority", "999"),
 					resource.TestCheckResourceAttr(resourceName, "description", "Terraform Acceptance Test SignOn Policy Updated"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccOktaPoviderPassword(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaPoviderPassword(ri)
+	updatedConfig := testOktaPoviderPassword_updated(ri)
+	resourceName := "okta_policies.testPassword-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaProviderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "type", "PASSWORD"),
+					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
+					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "description", "Terraform Acceptance Test Password Policy"),
+				),
+			},
+			{
+				Config: updatedConfig,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+					resource.TestCheckResourceAttr(resourceName, "type", "PASSWORD"),
+					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
+					resource.TestCheckResourceAttr(resourceName, "status", "INACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "priority", "999"),
+					resource.TestCheckResourceAttr(resourceName, "description", "Terraform Acceptance Test Password Policy Updated"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minlength", "12"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minlowercase", "0"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minuppercase", "0"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minnumber", "0"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minsymbol", "0"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.excludeusername", "false"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.excludeattributes.0", "firstName"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.excludeattributes.1", "lastName"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.dictionarylookup", "true"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.maxagedays", "60"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.expirewarndays", "15"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.minageminutes", "60"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.historycount", "5"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.maxlockoutattempts", "3"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.autounlockminutes", "2"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.showlockoutfailures", "true"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.questionminlength", "10"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.recoveryemailtoken", "20160"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.smsrecovery", "ACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.skipunlock", "true"),
 				),
 			},
 		},
@@ -143,23 +175,69 @@ func testPolicyExists(expected bool, policyType string, policyName string) error
 
 func testOktaPoviderSignOn(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
+resource "okta_policies" "testSignOn-%d" {
   type        = "OKTA_SIGN_ON"
-  name        = "testAcc"
+  name        = "testAcc-%d"
   status      = "ACTIVE"
   description = "Terraform Acceptance Test SignOn Policy"
 }
-`, rInt)
+`, rInt, rInt)
 }
 
 func testOktaPoviderSignOn_updated(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
+resource "okta_policies" "testSignOn-%d" {
   type        = "OKTA_SIGN_ON"
-  name        = "testAcc"
+  name        = "testAcc-%d"
   status      = "INACTIVE"
   priority    = 999
   description = "Terraform Acceptance Test SignOn Policy Updated"
 }
-`, rInt)
+`, rInt, rInt)
+}
+
+func testOktaPoviderPassword(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "testPassword-%d" {
+  type        = "PASSWORD"
+  name        = "testAcc-%d"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test Password Policy"
+}
+`, rInt, rInt)
+}
+
+func testOktaPoviderPassword_updated(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "testPassword-%d" {
+  type        = "PASSWORD"
+  name        = "testAcc-%d"
+  status      = "INACTIVE"
+  priority    = 999
+  description = "Terraform Acceptance Test Password Policy Updated"
+  settings {
+    password {
+      minlength = 12
+      minlowercase = 0
+      minuppercase = 0
+      minnumber = 0
+      minsymbol = 0
+      excludeusername = false
+      excludeattributes = [ "firstName", "lastName" ]
+      dictionarylookup = true
+      maxagedays = 60
+      expirewarndays = 15
+      minageminutes = 60
+      historycount = 5
+      maxlockoutattempts = 3
+      autounlockminutes = 2
+      showlockoutfailures = true
+      questionminlength = 10
+      recoveryemailtoken = 20160
+      smsrecovery = "ACTIVE"
+      skipunlock = true
+    }
+  }
+}
+`, rInt, rInt)
 }

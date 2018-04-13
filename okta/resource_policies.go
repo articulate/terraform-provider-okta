@@ -53,8 +53,10 @@ func resourcePolicies() *schema.Resource {
 			// ValidateFunc currently not supported in terraform for list types so we'll add our check here
 			if d.HasChange("settings.0.password.0.excludeattributes") {
 				for _, vals := range d.Get("settings.0.password.0.excludeattributes").([]interface{}) {
-					if vals.(string) != "firstName" || vals.(string) != "lastName" {
-						return fmt.Errorf("accepted values for excludeattributes password settings are \"firstName\" and/or \"lastName\"")
+					if vals.(string) != "firstName" {
+						if vals.(string) != "lastName" {
+							return fmt.Errorf("accepted values for excludeattributes password settings are \"firstName\" and/or \"lastName\"")
+						}
 					}
 				}
 			}
@@ -218,12 +220,6 @@ func resourcePolicies() *schema.Resource {
 										Type:        schema.TypeBool,
 										Optional:    true,
 										Description: "If a user should be informed when their account is locked. Default = false",
-									},
-									"recoveryquestion": {
-										Type:         schema.TypeString,
-										Optional:     true,
-										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
-										Description:  "Enable or Disable the recovery question: ACTIVE or INACTIVE. Default = ACTIVE",
 									},
 									"questionminlength": {
 										Type:        schema.TypeInt,
@@ -483,7 +479,8 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 
 	// if our password settings schema fields are undefined, use the Okta defaults
 	// we add the defaults here & not in the schema map to avoid defaults appearing in the terraform plan diff
-	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE" // okta required & read-only default
+	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
+	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // okta required default
 	if len(d.Get("settings.0.password").([]interface{})) > 0 {
 		if minlength, ok := d.GetOk("settings.0.password.0.minlength"); ok {
 			template.Settings.Password.Complexity.MinLength = minlength.(int)
@@ -561,11 +558,6 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 			template.Settings.Password.Lockout.ShowLockoutFailures = showlockoutfailures.(bool)
 		} else {
 			template.Settings.Password.Lockout.ShowLockoutFailures = false
-		}
-		if recoveryquestion, ok := d.GetOk("settings.0.password.0.recoveryquestion"); ok {
-			template.Settings.Recovery.Factors.RecoveryQuestion.Status = recoveryquestion.(string)
-		} else {
-			template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE"
 		}
 		if questionminlength, ok := d.GetOk("settings.0.password.0.questionminlength"); ok {
 			template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = questionminlength.(int)
