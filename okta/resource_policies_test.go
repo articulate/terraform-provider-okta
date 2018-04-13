@@ -2,6 +2,7 @@ package okta
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"testing"
 
@@ -10,11 +11,67 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-func TestAccOktaPoviderSignOn(t *testing.T) {
+func TestAccOktaProvider_nameErrors(t *testing.T) {
 	ri := acctest.RandInt()
-	config := testOktaPoviderSignOn(ri)
-	updatedConfig := testOktaPoviderSignOn_updated(ri)
-	resourceName := "okta_policies.testSignOn-" + strconv.Itoa(ri)
+	config := testOktaProviderSignOn(ri)
+	updatedConfig := testOktaProviderSignOn_nameErrors(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaProviderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("You cannot change the name field or type field of an existing Policy"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+		},
+	})
+}
+func TestAccOktaProvider_typeErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaProviderSignOn(ri)
+	updatedConfig := testOktaProviderSignOn_typeErrors(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaProviderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("You cannot change the name field or type field of an existing Policy"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+		},
+	})
+}
+func TestAccOktaProviderSignOn(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaProviderSignOn(ri)
+	updatedConfig := testOktaProviderSignOn_updated(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -46,11 +103,69 @@ func TestAccOktaPoviderSignOn(t *testing.T) {
 	})
 }
 
-func TestAccOktaPoviderPassword(t *testing.T) {
+func TestAccOktaProviderSignOn_passErrors(t *testing.T) {
 	ri := acctest.RandInt()
-	config := testOktaPoviderPassword(ri)
-	updatedConfig := testOktaPoviderPassword_updated(ri)
-	resourceName := "okta_policies.testPassword-" + strconv.Itoa(ri)
+	config := testOktaProviderSignOn(ri)
+	updatedConfig := testOktaProviderSignOn_passErrors(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaProviderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("password settings options not supported in the Okta SignOn Policy"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccOktaProviderSignOn_authpErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaProviderSignOn(ri)
+	updatedConfig := testOktaProviderSignOn_authpErrors(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaProviderDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("authprovider condition options not supported in the Okta SignOn Policy"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaProviderExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
+func TestAccOktaProviderPassword(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaProviderPassword(ri)
+	updatedConfig := testOktaProviderPassword_updated(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -173,9 +288,9 @@ func testPolicyExists(expected bool, policyType string, policyName string) error
 	return nil
 }
 
-func testOktaPoviderSignOn(rInt int) string {
+func testOktaProviderSignOn(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "testSignOn-%d" {
+resource "okta_policies" "test-%d" {
   type        = "OKTA_SIGN_ON"
   name        = "testAcc-%d"
   status      = "ACTIVE"
@@ -184,9 +299,9 @@ resource "okta_policies" "testSignOn-%d" {
 `, rInt, rInt)
 }
 
-func testOktaPoviderSignOn_updated(rInt int) string {
+func testOktaProviderSignOn_updated(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "testSignOn-%d" {
+resource "okta_policies" "test-%d" {
   type        = "OKTA_SIGN_ON"
   name        = "testAcc-%d"
   status      = "INACTIVE"
@@ -196,9 +311,62 @@ resource "okta_policies" "testSignOn-%d" {
 `, rInt, rInt)
 }
 
-func testOktaPoviderPassword(rInt int) string {
+func testOktaProviderSignOn_nameErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "testPassword-%d" {
+resource "okta_policies" "test-%d" {
+  type        = "OKTA_SIGN_ON"
+  name        = "testAccChanged-%d"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test SignOn Policy Error Check"
+}
+`, rInt, rInt)
+}
+func testOktaProviderSignOn_typeErrors(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "test-%d" {
+  type        = "PASSWORD"
+  name        = "testAcc-%d"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test SignOn Policy Error Check"
+}
+`, rInt, rInt)
+}
+
+func testOktaProviderSignOn_passErrors(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "test-%d" {
+  type        = "OKTA_SIGN_ON"
+  name        = "testAcc-%d"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test SignOn Policy Error Check"
+  settings {
+    password {
+      minlength = 12
+    }
+  }
+}
+`, rInt, rInt)
+}
+
+func testOktaProviderSignOn_authpErrors(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "test-%d" {
+  type        = "OKTA_SIGN_ON"
+  name        = "testAcc-%d"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test SignOn Policy Error Check"
+  conditions {
+    authprovider {
+      provider = "ACTIVE_DIRECTORY"
+    }
+  }
+}
+`, rInt, rInt)
+}
+
+func testOktaProviderPassword(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "test-%d" {
   type        = "PASSWORD"
   name        = "testAcc-%d"
   status      = "ACTIVE"
@@ -207,9 +375,9 @@ resource "okta_policies" "testPassword-%d" {
 `, rInt, rInt)
 }
 
-func testOktaPoviderPassword_updated(rInt int) string {
+func testOktaProviderPassword_updated(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "testPassword-%d" {
+resource "okta_policies" "test-%d" {
   type        = "PASSWORD"
   name        = "testAcc-%d"
   status      = "INACTIVE"
