@@ -301,12 +301,19 @@ resource "okta_policies" "test-%d" {
 
 func testOktaProviderSignOn_updated(rInt int) string {
 	return fmt.Sprintf(`
+data "okta_groups" "everyone" {
+  name = "Everyone"
+}
+
 resource "okta_policies" "test-%d" {
   type        = "OKTA_SIGN_ON"
   name        = "testAcc-%d"
   status      = "INACTIVE"
   priority    = 999
   description = "Terraform Acceptance Test SignOn Policy Updated"
+  conditions {
+    groups = [ "${data.okta_groups.everyone.id}" ]
+  }
 }
 `, rInt, rInt)
 }
@@ -377,12 +384,19 @@ resource "okta_policies" "test-%d" {
 
 func testOktaProviderPassword_updated(rInt int) string {
 	return fmt.Sprintf(`
+data "okta_groups" "everyone" {
+  name = "Everyone"
+}
+
 resource "okta_policies" "test-%d" {
   type        = "PASSWORD"
   name        = "testAcc-%d"
   status      = "INACTIVE"
   priority    = 999
   description = "Terraform Acceptance Test Password Policy Updated"
+  conditions {
+    groups = [ "${data.okta_groups.everyone.id}" ]
+  }
   settings {
     password {
       minlength = 12
