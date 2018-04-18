@@ -91,7 +91,7 @@ func resourcePolicies() *schema.Resource {
 				Optional:     true,
 				Default:      "ACTIVE",
 				ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
-				Description:  "Policy Status: ACTIVE or INACTIVE",
+				Description:  "Policy Status: ACTIVE or INACTIVE. Default = ACTIVE",
 			},
 			"conditions": {
 				Type:        schema.TypeList,
@@ -204,7 +204,7 @@ func resourcePolicies() *schema.Resource {
 									"historycount": {
 										Type:        schema.TypeInt,
 										Optional:    true,
-										Description: "Number of distinct passwords that can be created before they can be reused: 0 = none. Default = 0",
+										Description: "Number of distinct passwords that must be created before they can be reused: 0 = none. Default = 0",
 									},
 									"maxlockoutattempts": {
 										Type:        schema.TypeInt,
@@ -235,7 +235,7 @@ func resourcePolicies() *schema.Resource {
 										Type:         schema.TypeString,
 										Optional:     true,
 										ValidateFunc: validation.StringInSlice([]string{"ACTIVE", "INACTIVE"}, false),
-										Description:  "If SMS password recovery is enabled or disabled: ACTIVE or INACTIVE. Default = INACTIVE",
+										Description:  "Enable or disable SMS password recovery: ACTIVE or INACTIVE. Default = INACTIVE",
 									},
 									"skipunlock": {
 										Type:        schema.TypeBool,
@@ -415,15 +415,13 @@ func getEveryoneGroup(m interface{}) (string, error) {
 // populate policy conditions with the terraform schema conditions fields
 func policyConditions(d *schema.ResourceData) ([]string, error) {
 	groups := make([]string, 0)
-	if len(d.Get("conditions").([]interface{})) > 0 {
-		if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
-			for _, vals := range d.Get("conditions.0.groups").([]interface{}) {
-				groups = append(groups, vals.(string))
-			}
+	if len(d.Get("conditions.0.groups").([]interface{})) > 0 {
+		for _, vals := range d.Get("conditions.0.groups").([]interface{}) {
+			groups = append(groups, vals.(string))
 		}
-		if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
-			return groups, fmt.Errorf("[ERROR] Active Directory Auth Provider not supported in this terraform provider at this time")
-		}
+	}
+	if len(d.Get("conditions.0.authprovider").([]interface{})) > 0 {
+		return groups, fmt.Errorf("[ERROR] Active Directory Auth Provider not supported in this terraform provider at this time")
 	}
 	return groups, nil
 }
@@ -477,40 +475,47 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		template.Conditions.People.Groups.Include = groups
 	}
 
-	// if our password settings schema fields are undefined, use the Okta defaults
+	// Okta defaults
 	// we add the defaults here & not in the schema map to avoid defaults appearing in the terraform plan diff
+	template.Settings.Password.Complexity.MinLength = 8
+	template.Settings.Password.Complexity.MinLowerCase = 1
+	template.Settings.Password.Complexity.MinUpperCase = 1
+	template.Settings.Password.Complexity.MinNumber = 1
+	template.Settings.Password.Complexity.MinSymbol = 1
+	template.Settings.Password.Complexity.ExcludeUsername = true
+	template.Settings.Password.Complexity.Dictionary.Common.Exclude = false
+	template.Settings.Password.Age.MaxAgeDays = 0
+	template.Settings.Password.Age.ExpireWarnDays = 0
+	template.Settings.Password.Age.MinAgeMinutes = 0
+	template.Settings.Password.Age.HistoryCount = 0
+	template.Settings.Password.Lockout.MaxAttempts = 0
+	template.Settings.Password.Lockout.AutoUnlockMinutes = 0
+	template.Settings.Password.Lockout.ShowLockoutFailures = false
+	template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = 4
+	template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = 10080
+	template.Settings.Recovery.Factors.OktaSms.Status = "INACTIVE"
+	template.Settings.Delegation.Options.SkipUnlock = false
 	template.Settings.Recovery.Factors.RecoveryQuestion.Status = "ACTIVE" // okta required default
 	template.Settings.Recovery.Factors.OktaEmail.Status = "ACTIVE"        // okta required default
+
 	if len(d.Get("settings.0.password").([]interface{})) > 0 {
 		if minlength, ok := d.GetOk("settings.0.password.0.minlength"); ok {
 			template.Settings.Password.Complexity.MinLength = minlength.(int)
-		} else {
-			template.Settings.Password.Complexity.MinLength = 8
 		}
 		if minlowercase, ok := d.GetOk("settings.0.password.0.minlowercase"); ok {
 			template.Settings.Password.Complexity.MinLowerCase = minlowercase.(int)
-		} else {
-			template.Settings.Password.Complexity.MinLowerCase = 1
 		}
 		if minuppercase, ok := d.GetOk("settings.0.password.0.minuppercase"); ok {
 			template.Settings.Password.Complexity.MinUpperCase = minuppercase.(int)
-		} else {
-			template.Settings.Password.Complexity.MinUpperCase = 1
 		}
 		if minnumber, ok := d.GetOk("settings.0.password.0.minnumber"); ok {
 			template.Settings.Password.Complexity.MinNumber = minnumber.(int)
-		} else {
-			template.Settings.Password.Complexity.MinNumber = 1
 		}
 		if minsymbol, ok := d.GetOk("settings.0.password.0.minsymbol"); ok {
 			template.Settings.Password.Complexity.MinSymbol = minsymbol.(int)
-		} else {
-			template.Settings.Password.Complexity.MinSymbol = 1
 		}
 		if excludeusername, ok := d.GetOk("settings.0.password.0.excludeusername"); ok {
 			template.Settings.Password.Complexity.ExcludeUsername = excludeusername.(bool)
-		} else {
-			template.Settings.Password.Complexity.ExcludeUsername = true
 		}
 		if len(d.Get("settings.0.password.0.excludeattributes").([]interface{})) > 0 {
 			exclude := make([]string, 0)
@@ -521,63 +526,39 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		}
 		if dictionarylookup, ok := d.GetOk("settings.0.password.0.dictionarylookup"); ok {
 			template.Settings.Password.Complexity.Dictionary.Common.Exclude = dictionarylookup.(bool)
-		} else {
-			template.Settings.Password.Complexity.Dictionary.Common.Exclude = false
 		}
 		if maxagedays, ok := d.GetOk("settings.0.password.0.maxagedays"); ok {
 			template.Settings.Password.Age.MaxAgeDays = maxagedays.(int)
-		} else {
-			template.Settings.Password.Age.MaxAgeDays = 0
 		}
 		if expirewarndays, ok := d.GetOk("settings.0.password.0.expirewarndays"); ok {
 			template.Settings.Password.Age.ExpireWarnDays = expirewarndays.(int)
-		} else {
-			template.Settings.Password.Age.ExpireWarnDays = 0
 		}
 		if minageminutes, ok := d.GetOk("settings.0.password.0.minageminutes"); ok {
 			template.Settings.Password.Age.MinAgeMinutes = minageminutes.(int)
-		} else {
-			template.Settings.Password.Age.MinAgeMinutes = 0
 		}
 		if historycount, ok := d.GetOk("settings.0.password.0.historycount"); ok {
 			template.Settings.Password.Age.HistoryCount = historycount.(int)
-		} else {
-			template.Settings.Password.Age.HistoryCount = 0
 		}
 		if maxlockoutattempts, ok := d.GetOk("settings.0.password.0.maxlockoutattempts"); ok {
 			template.Settings.Password.Lockout.MaxAttempts = maxlockoutattempts.(int)
-		} else {
-			template.Settings.Password.Lockout.MaxAttempts = 0
 		}
 		if autounlockminutes, ok := d.GetOk("settings.0.password.0.autounlockminutes"); ok {
 			template.Settings.Password.Lockout.AutoUnlockMinutes = autounlockminutes.(int)
-		} else {
-			template.Settings.Password.Lockout.AutoUnlockMinutes = 0
 		}
 		if showlockoutfailures, ok := d.GetOk("settings.0.password.0.showlockoutfailures"); ok {
 			template.Settings.Password.Lockout.ShowLockoutFailures = showlockoutfailures.(bool)
-		} else {
-			template.Settings.Password.Lockout.ShowLockoutFailures = false
 		}
 		if questionminlength, ok := d.GetOk("settings.0.password.0.questionminlength"); ok {
 			template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = questionminlength.(int)
-		} else {
-			template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = 4
 		}
 		if recoveryemailtoken, ok := d.GetOk("settings.0.password.0.recoveryemailtoken"); ok {
 			template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = recoveryemailtoken.(int)
-		} else {
-			template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = 10080
 		}
 		if smsrecovery, ok := d.GetOk("settings.0.password.0.smsrecovery"); ok {
 			template.Settings.Recovery.Factors.OktaSms.Status = smsrecovery.(string)
-		} else {
-			template.Settings.Recovery.Factors.OktaSms.Status = "INACTIVE"
 		}
 		if skipunlock, ok := d.GetOk("settings.0.password.0.skipunlock"); ok {
 			template.Settings.Delegation.Options.SkipUnlock = skipunlock.(bool)
-		} else {
-			template.Settings.Delegation.Options.SkipUnlock = false
 		}
 	}
 
@@ -602,7 +583,7 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
 		if thisPolicy.System == false {
-			err = policyActivate(policy.ID, d, m)
+			err = policyActivate(thisPolicy.ID, d, m)
 			if err != nil {
 				return err
 			}
@@ -665,7 +646,7 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
 		if thisPolicy.System == false {
-			err = policyActivate(policy.ID, d, m)
+			err = policyActivate(thisPolicy.ID, d, m)
 			if err != nil {
 				return err
 			}

@@ -42,6 +42,7 @@ func dataSourcePolicyRead(d *schema.ResourceData, m interface{}) error {
 			if policy.Name == d.Get("name").(string) {
 				d.SetId(policy.ID)
 				set = true
+				break
 			}
 		}
 		if set == false {
