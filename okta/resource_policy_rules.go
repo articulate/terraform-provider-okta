@@ -55,11 +55,11 @@ func resourcePolicyRules() *schema.Resource {
 			}
 
 			// network condition zones include & exclude are exclusive
-			if len(d.Get("conditions.0.network.0.include").([]interface{})) > 0 {
-				if len(d.Get("conditions.0.network.0.exclude").([]interface{})) > 0 {
-					return fmt.Errorf("You cannot set both include and exclude network condition zones")
-				}
-			}
+			//if len(d.Get("conditions.0.network.0.include").([]interface{})) > 0 {
+			//	if len(d.Get("conditions.0.network.0.exclude").([]interface{})) > 0 {
+			//		return fmt.Errorf("You cannot set both include and exclude network condition zones")
+			//	}
+			//}
 
 			return nil
 		},
@@ -121,12 +121,14 @@ func resourcePolicyRules() *schema.Resource {
 										Type:        schema.TypeList,
 										Optional:    true,
 										Description: "The zones to include",
+										ConflictsWith: []string{"conditions.0.network.0.exclude"},
 										Elem:        &schema.Schema{Type: schema.TypeString},
 									},
 									"exclude": {
 										Type:        schema.TypeList,
 										Optional:    true,
 										Description: "The zones to exclude",
+										ConflictsWith: []string{"conditions.0.network.0.include"},
 										Elem:        &schema.Schema{Type: schema.TypeString},
 									},
 								},
@@ -348,11 +350,6 @@ func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, *policyRuleT
 	thisPolicyRule = &policyRuleType{System: false}
 
 	_, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
-	// if the policy doesn't exist, then the policy rule doesn't exist
-	if client.OktaErrorCode == "E0000007" {
-		log.Printf("[INFO] Policy %v doesn't exist", d.Get("policyid").(string))
-		return false, thisPolicyRule, nil
-	}
 	if err != nil {
 		return false, thisPolicyRule, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
