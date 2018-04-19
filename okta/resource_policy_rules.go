@@ -38,7 +38,7 @@ func resourcePolicyRules() *schema.Resource {
 			// add custom error messages if user supplies options not supported by the policy rule
 			switch d.Get("type").(string) {
 			case "PASSWORD":
-				if len(d.Get("conditions.0.authtype").([]interface{})) > 0 {
+				if len(d.Get("conditions.0.authtype").(string)) > 0 {
 					return fmt.Errorf("authtype condition options not supported in the Okta Password Policy Rule")
 				}
 				if len(d.Get("actions.0.signon").([]interface{})) > 0 {
@@ -241,6 +241,7 @@ func resourcePolicyRuleCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	if exists == true {
 		log.Printf("[INFO] Policy Rule %v already exists in Okta. Adding to Terraform.", d.Get("name").(string))
+		d.SetId(thisPolicyRule.ID)
 	} else {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
@@ -260,8 +261,6 @@ func resourcePolicyRuleCreate(d *schema.ResourceData, m interface{}) error {
 
 		}
 	}
-	// add the policy rule resource to terraform
-	d.SetId(d.Get("name").(string))
 
 	return nil
 }
@@ -334,7 +333,7 @@ func resourcePolicyRuleDelete(d *schema.ResourceData, m interface{}) error {
 			}
 		}
 	} else {
-		return fmt.Errorf("[ERROR] Error Policy Rule not found in Okta: %v", err)
+		log.Printf("[INFO] Policy Rule not found in Okta, removing from terraform")
 	}
 	// remove the policy rule resource from terraform
 	d.SetId("")
@@ -349,11 +348,13 @@ func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, *policyRuleT
 	thisPolicyRule = &policyRuleType{System: false}
 
 	policy, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
+	// if the policy doesn't exist, then the policy rule doesn't exist
+	if client.OktaErrorCode == "E0000007" {
+		log.Printf("[INFO] Policy %v doesn't exist", d.Get("policyid").(string))
+		return false, thisPolicyRule, nil
+	}
 	if err != nil {
 		return false, thisPolicyRule, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
-	}
-	if policy == nil {
-		return false, thisPolicyRule, fmt.Errorf("[ERROR] Cannot find Policy ID %v in Okta", d.Get("policyid").(string))
 	}
 
 	currentPolicyRules, _, err := client.Policies.GetPolicyRules(d.Get("policyid").(string))
@@ -387,7 +388,7 @@ func policyRuleConditions(d *schema.ResourceData) ([]string, error) {
 	if len(d.Get("conditions.0.network").([]interface{})) > 0 {
 		return users, fmt.Errorf("[ERROR] network condition not supported in this terraform provider at this time")
 	}
-	if len(d.Get("conditions.0.authtype").([]interface{})) > 0 {
+	if len(d.Get("conditions.0.authtype").(string)) > 0 {
 		return users, fmt.Errorf("[ERROR] authtype condition not supported in this terraform provider at this time")
 	}
 	return users, nil
@@ -427,6 +428,7 @@ func policyRulePassword(thisPolicyRule *policyRuleType, action string, d *schema
 		template.Priority = d.Get("priority").(int)
 	}
 
+	template.Conditions.Network.Connection = "ANYWHERE" // Okta required default
 	users, err := policyRuleConditions(d)
 	if err != nil {
 		return err
@@ -458,6 +460,8 @@ func policyRulePassword(thisPolicyRule *policyRuleType, action string, d *schema
 			return fmt.Errorf("[ERROR] Error Creating Policy Rule: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Rule Created: %+v", rule)
+		log.Printf("[INFO] Adding Policy Rule to Terraform")
+		d.SetId(rule.ID)
 
 		err = policyRuleActivate(rule.ID, d, m)
 		if err != nil {
@@ -499,6 +503,7 @@ func policyRuleSignOn(thisPolicyRule *policyRuleType, action string, d *schema.R
 		template.Priority = d.Get("priority").(int)
 	}
 
+	template.Conditions.Network.Connection = "ANYWHERE" // Okta required default
 	users, err := policyRuleConditions(d)
 	if err != nil {
 		return err
@@ -554,6 +559,8 @@ func policyRuleSignOn(thisPolicyRule *policyRuleType, action string, d *schema.R
 			return fmt.Errorf("[ERROR] Error Creating Policy Rule: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Rule Created: %+v", rule)
+		log.Printf("[INFO] Adding Policy Rule to Terraform")
+		d.SetId(rule.ID)
 
 		err = policyRuleActivate(rule.ID, d, m)
 		if err != nil {

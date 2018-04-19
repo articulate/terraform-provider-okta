@@ -261,6 +261,7 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 	}
 	if exists == true {
 		log.Printf("[INFO] Policy %v already exists in Okta. Adding to Terraform.", d.Get("name").(string))
+		d.SetId(thisPolicy.ID)
 	} else {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
@@ -282,15 +283,13 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 			return fmt.Errorf("[ERROR] Oath Auth Policy not supported in this terraform provider at this time")
 		}
 	}
-	if thisPolicy.System == true {
-		log.Printf("[INFO] Policy %v is a System Policy, running Resource Policy Update.", d.Get("name").(string))
-		err = resourcePolicyUpdate(d, m)
-		if err != nil {
-			return err
-		}
-	}
-	// add the policy resource to terraform
-	d.SetId(d.Get("name").(string))
+	//if thisPolicy.System == true {
+	//	log.Printf("[INFO] Policy %v is a System Policy, running Resource Policy Update.", d.Get("name").(string))
+	//	err = resourcePolicyUpdate(d, m)
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 
 	return nil
 }
@@ -569,6 +568,8 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 			return fmt.Errorf("[ERROR] Error Creating Policy: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Created: %+v", policy)
+		log.Printf("[INFO] Adding Policy to Terraform")
+		d.SetId(policy.ID)
 
 		err = policyActivate(policy.ID, d, m)
 		if err != nil {
@@ -632,6 +633,8 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 			return fmt.Errorf("[ERROR] Error Creating Policy: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Created: %+v", policy)
+		log.Printf("[INFO] Adding Policy to Terraform")
+		d.SetId(policy.ID)
 
 		err = policyActivate(policy.ID, d, m)
 		if err != nil {
