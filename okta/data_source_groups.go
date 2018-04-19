@@ -1,4 +1,3 @@
-
 // this data source is a temporary "fix" for the policy tests to lookup the Everyone group ID
 // this data source needs to be deleted after the groups resource is added to the provider
 

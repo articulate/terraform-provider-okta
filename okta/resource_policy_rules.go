@@ -347,7 +347,7 @@ func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, *policyRuleT
 	var thisPolicyRule *policyRuleType
 	thisPolicyRule = &policyRuleType{System: false}
 
-	policy, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
+	_, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
 	// if the policy doesn't exist, then the policy rule doesn't exist
 	if client.OktaErrorCode == "E0000007" {
 		log.Printf("[INFO] Policy %v doesn't exist", d.Get("policyid").(string))
@@ -365,9 +365,9 @@ func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, *policyRuleT
 		for _, rule := range currentPolicyRules.Rules {
 			if rule.Name == d.Get("name").(string) {
 				thisPolicyRule = &policyRuleType{
-					ID:       policy.ID,
-					Priority: policy.Priority,
-					System:   policy.System,
+					ID:       rule.ID,
+					Priority: rule.Priority,
+					System:   rule.System,
 				}
 				return true, thisPolicyRule, nil
 			}
