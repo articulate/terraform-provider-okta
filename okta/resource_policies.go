@@ -7,13 +7,16 @@ import (
 	"log"
 )
 
+// global var to determine if our policy is a system policy
+var systemPolicy bool = false
+
 // fields retrieved from the policy in Okta & referenced in our resource functions
-type policyType struct {
-	ID          string
-	Description string
-	Priority    int
-	System      bool
-}
+//type policyType struct {
+//ID          string
+//Description string
+//Priority    int
+//System      bool
+//}
 
 func resourcePolicies() *schema.Resource {
 	return &schema.Resource{
@@ -254,24 +257,38 @@ func resourcePolicies() *schema.Resource {
 
 func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Creating Policy %v", d.Get("name").(string))
+	client := m.(*Config).oktaClient
 
-	exists, thisPolicy, err := policyExists(d, m)
+	var policyID string
+	exists := false
+	currentPolicies, _, err := client.Policies.GetPoliciesByType(d.Get("type").(string))
 	if err != nil {
-		return err
+		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
+	if currentPolicies != nil {
+		for _, policy := range currentPolicies.Policies {
+			if policy.Name == d.Get("name").(string) {
+				policyID = policy.ID
+				systemPolicy = policy.System
+				exists = true
+				break
+			}
+		}
+	}
+
 	if exists == true {
 		log.Printf("[INFO] Policy %v already exists in Okta. Adding to Terraform.", d.Get("name").(string))
-		d.SetId(thisPolicy.ID)
+		d.SetId(policyID)
 	} else {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			err = policyPassword(thisPolicy, "create", d, m)
+			err = policyPassword("create", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			err = policySignOn(thisPolicy, "create", d, m)
+			err = policySignOn("create", d, m)
 			if err != nil {
 				return err
 			}
@@ -297,7 +314,7 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 func resourcePolicyRead(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] List Policy %v", d.Get("name").(string))
 
-	exists, _, err := policyExists(d, m)
+	exists, err := policyExists(d, m)
 	if err != nil {
 		return err
 	}
@@ -314,20 +331,20 @@ func resourcePolicyUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Update Policy %v", d.Get("name").(string))
 	d.Partial(true)
 
-	exists, thisPolicy, err := policyExists(d, m)
+	exists, err := policyExists(d, m)
 	if err != nil {
 		return err
 	}
 	if exists == true {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			err = policyPassword(thisPolicy, "update", d, m)
+			err = policyPassword("update", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			err = policySignOn(thisPolicy, "update", d, m)
+			err = policySignOn("update", d, m)
 			if err != nil {
 				return err
 			}
@@ -350,15 +367,15 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Delete Policy %v", d.Get("name").(string))
 	client := m.(*Config).oktaClient
 
-	exists, thisPolicy, err := policyExists(d, m)
+	exists, err := policyExists(d, m)
 	if err != nil {
 		return err
 	}
 	if exists == true {
-		if thisPolicy.System == true {
+		if systemPolicy == true {
 			log.Printf("[INFO] Policy %v is a System Policy, cannot delete from Okta", d.Get("name").(string))
 		} else {
-			_, err = client.Policies.DeletePolicy(thisPolicy.ID)
+			_, err = client.Policies.DeletePolicy(d.Id())
 			if err != nil {
 				return fmt.Errorf("[ERROR] Error Deleting Policy from Okta: %v", err)
 			}
@@ -372,44 +389,33 @@ func resourcePolicyDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-// check if policy exists in Okta & return a struct of policy fields we'll reference during apply
-func policyExists(d *schema.ResourceData, m interface{}) (bool, *policyType, error) {
+// check if policy exists in Okta
+func policyExists(d *schema.ResourceData, m interface{}) (bool, error) {
 	client := m.(*Config).oktaClient
-	var thisPolicy *policyType
-	thisPolicy = &policyType{System: false}
 
-	currentPolicies, _, err := client.Policies.GetPoliciesByType(d.Get("type").(string))
+	policy, _, err := client.Policies.GetPolicy(d.Id())
+	if client.OktaErrorCode == "E0000007" {
+		return false, nil
+	}
 	if err != nil {
-		return false, thisPolicy, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return false, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
-	if currentPolicies != nil {
-		for _, policy := range currentPolicies.Policies {
-			if policy.Name == d.Get("name").(string) {
-				thisPolicy = &policyType{
-					ID:          policy.ID,
-					Description: policy.Description,
-					Priority:    policy.Priority,
-					System:      policy.System,
-				}
-				return true, thisPolicy, nil
-			}
-		}
-	}
-	return false, thisPolicy, nil
+	systemPolicy = policy.System
+	return true, nil
 }
 
 // system default policies use the Everyone group in the groups condition include, get that group ID
-func getEveryoneGroup(m interface{}) (string, error) {
-	client := m.(*Config).oktaClient
-	groups, _, err := client.Groups.ListGroups("q=Everyone")
-	if err != nil {
-		return "error", fmt.Errorf("[ERROR] ListGroups Error querying Everyone Group ID: %v", err)
-	}
-	if len(groups.Groups) > 1 {
-		return "error", fmt.Errorf("[ERROR] Query for Everyone Default Group resulted in more than one group.")
-	}
-	return groups.Groups[0].ID, nil
-}
+//func getEveryoneGroup(m interface{}) (string, error) {
+//	client := m.(*Config).oktaClient
+//	groups, _, err := client.Groups.ListGroups("q=Everyone")
+//	if err != nil {
+//		return "error", fmt.Errorf("[ERROR] ListGroups Error querying Everyone Group ID: %v", err)
+//	}
+//	if len(groups.Groups) > 1 {
+//		return "error", fmt.Errorf("[ERROR] Query for Everyone Default Group resulted in more than one group.")
+//	}
+//	return groups.Groups[0].ID, nil
+//}
 
 // populate policy conditions with the terraform schema conditions fields
 func policyConditions(d *schema.ResourceData) ([]string, error) {
@@ -426,17 +432,17 @@ func policyConditions(d *schema.ResourceData) ([]string, error) {
 }
 
 // activate or deactivate a policy according to the terraform schema status field
-func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
+func policyActivate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	if d.Get("status").(string) == "ACTIVE" {
-		_, err := client.Policies.ActivatePolicy(id)
+		_, err := client.Policies.ActivatePolicy(d.Id())
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Activating Policy: %v", err)
 		}
 	}
 	if d.Get("status").(string) == "INACTIVE" {
-		_, err := client.Policies.DeactivatePolicy(id)
+		_, err := client.Policies.DeactivatePolicy(d.Id())
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Deactivating Policy: %v", err)
 		}
@@ -445,34 +451,48 @@ func policyActivate(id string, d *schema.ResourceData, m interface{}) error {
 }
 
 // create or update a password policy
-func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
+func policyPassword(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.PasswordPolicy()
 	template.Name = d.Get("name").(string)
 	template.Type = d.Get("type").(string)
-	if thisPolicy.System == true {
-		template.Status = "ACTIVE"
-		template.Description = thisPolicy.Description
-		template.Priority = thisPolicy.Priority
-
-		everyone, err := getEveryoneGroup(m)
-		if err != nil {
-			return err
-		}
-		template.Conditions.People.Groups.Include = []string{everyone}
-
-	} else {
-		template.Description = d.Get("description").(string)
-		template.Priority = d.Get("priority").(int)
-		template.Status = d.Get("status").(string)
-
-		groups, err := policyConditions(d)
-		if err != nil {
-			return err
-		}
-		template.Conditions.People.Groups.Include = groups
+	template.Status = d.Get("status").(string)
+	if description, ok := d.GetOk("description"); ok {
+		template.Description = description.(string)
 	}
+	if priority, ok := d.GetOk("priority"); ok {
+		template.Priority = priority.(int)
+	}
+
+	groups, err := policyConditions(d)
+	if err != nil {
+		return err
+	}
+	template.Conditions.People.Groups.Include = groups
+
+	//if thisPolicy.System == true {
+	//	template.Status = "ACTIVE"
+	//	template.Description = thisPolicy.Description
+	//	template.Priority = thisPolicy.Priority
+
+	//	everyone, err := getEveryoneGroup(m)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	template.Conditions.People.Groups.Include = []string{everyone}
+
+	//} else {
+	//	template.Description = d.Get("description").(string)
+	//	template.Priority = d.Get("priority").(int)
+	//	template.Status = d.Get("status").(string)
+
+	//	groups, err := policyConditions(d)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	template.Conditions.People.Groups.Include = groups
+	//}
 
 	// Okta defaults
 	// we add the defaults here & not in the schema map to avoid defaults appearing in the terraform plan diff
@@ -571,20 +591,20 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 		log.Printf("[INFO] Adding Policy to Terraform")
 		d.SetId(policy.ID)
 
-		err = policyActivate(policy.ID, d, m)
+		err = policyActivate(d, m)
 		if err != nil {
 			return err
 		}
 
 	case "update":
-		policy, _, err := client.Policies.UpdatePolicy(thisPolicy.ID, template)
+		policy, _, err := client.Policies.UpdatePolicy(d.Id(), template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		if thisPolicy.System == false {
-			err = policyActivate(thisPolicy.ID, d, m)
+		if systemPolicy == false {
+			err = policyActivate(d, m)
 			if err != nil {
 				return err
 			}
@@ -597,34 +617,50 @@ func policyPassword(thisPolicy *policyType, action string, d *schema.ResourceDat
 }
 
 // create or update a signon policy
-func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData, m interface{}) error {
+func policySignOn(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.SignOnPolicy()
 	template.Name = d.Get("name").(string)
 	template.Type = d.Get("type").(string)
-	if thisPolicy.System == true {
-		template.Status = "ACTIVE"
-		template.Description = thisPolicy.Description
-		template.Priority = thisPolicy.Priority
-
-		everyone, err := getEveryoneGroup(m)
-		if err != nil {
-			return err
-		}
-		template.Conditions.People.Groups.Include = []string{everyone}
-
-	} else {
-		template.Description = d.Get("description").(string)
-		template.Priority = d.Get("priority").(int)
-		template.Status = d.Get("status").(string)
-
-		groups, err := policyConditions(d)
-		if err != nil {
-			return err
-		}
-		template.Conditions.People.Groups.Include = groups
+	template.Status = d.Get("status").(string)
+	if description, ok := d.GetOk("description"); ok {
+		template.Description = description.(string)
 	}
+	if priority, ok := d.GetOk("priority"); ok {
+		template.Priority = priority.(int)
+	}
+
+	groups, err := policyConditions(d)
+	if err != nil {
+		return err
+	}
+	template.Conditions.People.Groups.Include = groups
+
+	//template.Name = d.Get("name").(string)
+	//template.Type = d.Get("type").(string)
+	//if thisPolicy.System == true {
+	//	template.Status = "ACTIVE"
+	//	template.Description = thisPolicy.Description
+	//	template.Priority = thisPolicy.Priority
+
+	//	everyone, err := getEveryoneGroup(m)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	template.Conditions.People.Groups.Include = []string{everyone}
+
+	//} else {
+	//	template.Description = d.Get("description").(string)
+	//	template.Priority = d.Get("priority").(int)
+	//	template.Status = d.Get("status").(string)
+
+	//	groups, err := policyConditions(d)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	template.Conditions.People.Groups.Include = groups
+	//}
 
 	switch action {
 	case "create":
@@ -636,20 +672,20 @@ func policySignOn(thisPolicy *policyType, action string, d *schema.ResourceData,
 		log.Printf("[INFO] Adding Policy to Terraform")
 		d.SetId(policy.ID)
 
-		err = policyActivate(policy.ID, d, m)
+		err = policyActivate(d, m)
 		if err != nil {
 			return err
 		}
 
 	case "update":
-		policy, _, err := client.Policies.UpdatePolicy(thisPolicy.ID, template)
+		policy, _, err := client.Policies.UpdatePolicy(d.Id(), template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		if thisPolicy.System == false {
-			err = policyActivate(thisPolicy.ID, d, m)
+		if systemPolicy == false {
+			err = policyActivate(d, m)
 			if err != nil {
 				return err
 			}
