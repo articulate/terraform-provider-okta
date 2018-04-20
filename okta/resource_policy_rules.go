@@ -7,12 +7,15 @@ import (
 	"log"
 )
 
+// global var to determine if our policy rule is a system policy rule
+var systemPolicyRule bool = false
+
 // fields retrieved from the policy rule in Okta & referenced in our resource functions
-type policyRuleType struct {
-	ID       string
-	Priority int
-	System   bool
-}
+//type policyRuleType struct {
+//	ID       string
+//	Priority int
+//	System   bool
+//}
 
 func resourcePolicyRules() *schema.Resource {
 	return &schema.Resource{
@@ -118,18 +121,18 @@ func resourcePolicyRules() *schema.Resource {
 										Description:  "Network selection mode: ANYWHERE, ZONE, ON_NETWORK, or OFF_NETWORK. Default = ANYWHERE",
 									},
 									"include": {
-										Type:        schema.TypeList,
-										Optional:    true,
-										Description: "The zones to include",
+										Type:          schema.TypeList,
+										Optional:      true,
+										Description:   "The zones to include",
 										ConflictsWith: []string{"conditions.0.network.0.exclude"},
-										Elem:        &schema.Schema{Type: schema.TypeString},
+										Elem:          &schema.Schema{Type: schema.TypeString},
 									},
 									"exclude": {
-										Type:        schema.TypeList,
-										Optional:    true,
-										Description: "The zones to exclude",
+										Type:          schema.TypeList,
+										Optional:      true,
+										Description:   "The zones to exclude",
 										ConflictsWith: []string{"conditions.0.network.0.include"},
-										Elem:        &schema.Schema{Type: schema.TypeString},
+										Elem:          &schema.Schema{Type: schema.TypeString},
 									},
 								},
 							},
@@ -236,24 +239,43 @@ func resourcePolicyRules() *schema.Resource {
 
 func resourcePolicyRuleCreate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Creating Policy Rule %v", d.Get("name").(string))
+	client := m.(*Config).oktaClient
 
-	exists, thisPolicyRule, err := policyRuleExists(d, m)
+	var ruleID string
+	exists := false
+	_, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
 	if err != nil {
-		return err
+		return fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
+
+	currentPolicyRules, _, err := client.Policies.GetPolicyRules(d.Get("policyid").(string))
+	if err != nil {
+		return fmt.Errorf("[ERROR] Error Listing Policy Rules in Okta: %v", err)
+	}
+	if currentPolicyRules != nil {
+		for _, rule := range currentPolicyRules.Rules {
+			if rule.Name == d.Get("name").(string) {
+				ruleID = rule.ID
+				systemPolicyRule = rule.System
+				exists = true
+				break
+			}
+		}
+	}
+
 	if exists == true {
 		log.Printf("[INFO] Policy Rule %v already exists in Okta. Adding to Terraform.", d.Get("name").(string))
-		d.SetId(thisPolicyRule.ID)
+		d.SetId(ruleID)
 	} else {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			err = policyRulePassword(thisPolicyRule, "create", d, m)
+			err = policyRulePassword("create", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			err = policyRuleSignOn(thisPolicyRule, "create", d, m)
+			err = policyRuleSignOn("create", d, m)
 			if err != nil {
 				return err
 			}
@@ -270,7 +292,7 @@ func resourcePolicyRuleCreate(d *schema.ResourceData, m interface{}) error {
 func resourcePolicyRuleRead(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] List Policy Rule %v", d.Get("name").(string))
 
-	exists, _, err := policyRuleExists(d, m)
+	exists, err := policyRuleExists(d, m)
 	if err != nil {
 		return err
 	}
@@ -287,20 +309,20 @@ func resourcePolicyRuleUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Update Policy Rule %v", d.Get("name").(string))
 	d.Partial(true)
 
-	exists, thisPolicyRule, err := policyRuleExists(d, m)
+	exists, err := policyRuleExists(d, m)
 	if err != nil {
 		return err
 	}
 	if exists == true {
 		switch d.Get("type").(string) {
 		case "PASSWORD":
-			err = policyRulePassword(thisPolicyRule, "update", d, m)
+			err = policyRulePassword("update", d, m)
 			if err != nil {
 				return err
 			}
 
 		case "OKTA_SIGN_ON":
-			err = policyRuleSignOn(thisPolicyRule, "update", d, m)
+			err = policyRuleSignOn("update", d, m)
 			if err != nil {
 				return err
 			}
@@ -321,15 +343,15 @@ func resourcePolicyRuleDelete(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Delete Policy Rule %v", d.Get("name").(string))
 	client := m.(*Config).oktaClient
 
-	exists, thisPolicyRule, err := policyRuleExists(d, m)
+	exists, err := policyRuleExists(d, m)
 	if err != nil {
 		return err
 	}
 	if exists == true {
-		if thisPolicyRule.System == true {
+		if systemPolicyRule == true {
 			log.Printf("[INFO] Policy Rule %v is a System Policy, cannot delete from Okta", d.Get("name").(string))
 		} else {
-			_, err = client.Policies.DeletePolicyRule(d.Get("policyid").(string), thisPolicyRule.ID)
+			_, err = client.Policies.DeletePolicyRule(d.Get("policyid").(string), d.Id())
 			if err != nil {
 				return fmt.Errorf("[ERROR] Error Deleting Policy Rule from Okta: %v", err)
 			}
@@ -343,40 +365,30 @@ func resourcePolicyRuleDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
-// check if policy rule exists in Okta & return a struct of policy rule fields we'll reference during apply
-func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, *policyRuleType, error) {
+// check if policy rule exists in Okta
+func policyRuleExists(d *schema.ResourceData, m interface{}) (bool, error) {
 	client := m.(*Config).oktaClient
-	var thisPolicyRule *policyRuleType
-	thisPolicyRule = &policyRuleType{System: false}
 
 	_, _, err := client.Policies.GetPolicy(d.Get("policyid").(string))
 	if err != nil {
-		return false, thisPolicyRule, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
+		return false, fmt.Errorf("[ERROR] Error Listing Policy in Okta: %v", err)
 	}
 
-	currentPolicyRules, _, err := client.Policies.GetPolicyRules(d.Get("policyid").(string))
+	rule, _, err := client.Policies.GetPolicyRule(d.Get("policyid").(string), d.Id())
+	if client.OktaErrorCode == "E0000007" {
+		return false, nil
+	}
 	if err != nil {
-		return false, thisPolicyRule, fmt.Errorf("[ERROR] Error Listing Policy Rules in Okta: %v", err)
+		return false, fmt.Errorf("[ERROR] Error Listing Policy Rule in Okta: %v", err)
 	}
-	if currentPolicyRules != nil {
-		for _, rule := range currentPolicyRules.Rules {
-			if rule.Name == d.Get("name").(string) {
-				thisPolicyRule = &policyRuleType{
-					ID:       rule.ID,
-					Priority: rule.Priority,
-					System:   rule.System,
-				}
-				return true, thisPolicyRule, nil
-			}
-		}
-	}
-	return false, thisPolicyRule, nil
+	systemPolicyRule = rule.System
+	return true, nil
+
 }
 
 // populate policy rule conditions with the terraform schema conditions fields
 func policyRuleConditions(d *schema.ResourceData) ([]string, error) {
 	users := make([]string, 0)
-	//if len(d.Get("conditions").([]interface{})) > 0 {
 	if len(d.Get("conditions.0.users").([]interface{})) > 0 {
 		for _, vals := range d.Get("conditions.0.users").([]interface{}) {
 			users = append(users, vals.(string))
@@ -392,17 +404,17 @@ func policyRuleConditions(d *schema.ResourceData) ([]string, error) {
 }
 
 // activate or deactivate a policy rule according to the terraform schema status field
-func policyRuleActivate(id string, d *schema.ResourceData, m interface{}) error {
+func policyRuleActivate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	if d.Get("status").(string) == "ACTIVE" {
-		_, err := client.Policies.ActivatePolicyRule(d.Get("policyid").(string), id)
+		_, err := client.Policies.ActivatePolicyRule(d.Get("policyid").(string), d.Id())
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Activating Policy Rule: %v", err)
 		}
 	}
 	if d.Get("status").(string) == "INACTIVE" {
-		_, err := client.Policies.DeactivatePolicyRule(d.Get("policyid").(string), id)
+		_, err := client.Policies.DeactivatePolicyRule(d.Get("policyid").(string), d.Id())
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Deactivating Policy Rule: %v", err)
 		}
@@ -411,18 +423,15 @@ func policyRuleActivate(id string, d *schema.ResourceData, m interface{}) error 
 }
 
 // create or update a password policy rule
-func policyRulePassword(thisPolicyRule *policyRuleType, action string, d *schema.ResourceData, m interface{}) error {
+func policyRulePassword(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.PasswordRule()
 	template.Name = d.Get("name").(string)
 	template.Type = d.Get("type").(string)
-	if thisPolicyRule.System == true {
-		template.Status = "ACTIVE"
-		template.Priority = thisPolicyRule.Priority
-	} else {
-		template.Status = d.Get("status").(string)
-		template.Priority = d.Get("priority").(int)
+	template.Status = d.Get("status").(string)
+	if priority, ok := d.GetOk("priority"); ok {
+		template.Priority = priority.(int)
 	}
 
 	template.Conditions.Network.Connection = "ANYWHERE" // Okta required default
@@ -460,20 +469,20 @@ func policyRulePassword(thisPolicyRule *policyRuleType, action string, d *schema
 		log.Printf("[INFO] Adding Policy Rule to Terraform")
 		d.SetId(rule.ID)
 
-		err = policyRuleActivate(rule.ID, d, m)
+		err = policyRuleActivate(d, m)
 		if err != nil {
 			return err
 		}
 
 	case "update":
-		rule, _, err := client.Policies.UpdatePolicyRule(d.Get("policyid").(string), thisPolicyRule.ID, template)
+		rule, _, err := client.Policies.UpdatePolicyRule(d.Get("policyid").(string), d.Id(), template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy Rule: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Rule Updated: %+v", rule)
 
-		if thisPolicyRule.System == false {
-			err = policyRuleActivate(thisPolicyRule.ID, d, m)
+		if systemPolicyRule == false {
+			err = policyRuleActivate(d, m)
 			if err != nil {
 				return err
 			}
@@ -486,18 +495,15 @@ func policyRulePassword(thisPolicyRule *policyRuleType, action string, d *schema
 }
 
 // create or update a signon policy rule
-func policyRuleSignOn(thisPolicyRule *policyRuleType, action string, d *schema.ResourceData, m interface{}) error {
+func policyRuleSignOn(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Policies.SignOnRule()
 	template.Name = d.Get("name").(string)
 	template.Type = d.Get("type").(string)
-	if thisPolicyRule.System == true {
-		template.Status = "ACTIVE"
-		template.Priority = thisPolicyRule.Priority
-	} else {
-		template.Status = d.Get("status").(string)
-		template.Priority = d.Get("priority").(int)
+	template.Status = d.Get("status").(string)
+	if priority, ok := d.GetOk("priority"); ok {
+		template.Priority = priority.(int)
 	}
 
 	template.Conditions.Network.Connection = "ANYWHERE" // Okta required default
@@ -559,20 +565,20 @@ func policyRuleSignOn(thisPolicyRule *policyRuleType, action string, d *schema.R
 		log.Printf("[INFO] Adding Policy Rule to Terraform")
 		d.SetId(rule.ID)
 
-		err = policyRuleActivate(rule.ID, d, m)
+		err = policyRuleActivate(d, m)
 		if err != nil {
 			return err
 		}
 
 	case "update":
-		rule, _, err := client.Policies.UpdatePolicyRule(d.Get("policyid").(string), thisPolicyRule.ID, template)
+		rule, _, err := client.Policies.UpdatePolicyRule(d.Get("policyid").(string), d.Id(), template)
 		if err != nil {
 			return fmt.Errorf("[ERROR] Error Updating Policy Rule: %v", err)
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", rule)
 
-		if thisPolicyRule.System == false {
-			err = policyRuleActivate(thisPolicyRule.ID, d, m)
+		if systemPolicyRule == false {
+			err = policyRuleActivate(d, m)
 			if err != nil {
 				return err
 			}
