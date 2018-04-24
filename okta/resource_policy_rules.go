@@ -10,13 +10,6 @@ import (
 // global var to determine if our policy rule is a system policy rule
 var systemPolicyRule bool = false
 
-// fields retrieved from the policy rule in Okta & referenced in our resource functions
-//type policyRuleType struct {
-//	ID       string
-//	Priority int
-//	System   bool
-//}
-
 func resourcePolicyRules() *schema.Resource {
 	return &schema.Resource{
 		Create: resourcePolicyRuleCreate,
@@ -481,11 +474,9 @@ func policyRulePassword(action string, d *schema.ResourceData, m interface{}) er
 		}
 		log.Printf("[INFO] Okta Policy Rule Updated: %+v", rule)
 
-		if systemPolicyRule == false {
-			err = policyRuleActivate(d, m)
-			if err != nil {
-				return err
-			}
+		err = policyRuleActivate(d, m)
+		if err != nil {
+			return err
 		}
 
 	default:
@@ -507,6 +498,7 @@ func policyRuleSignOn(action string, d *schema.ResourceData, m interface{}) erro
 	}
 
 	template.Conditions.Network.Connection = "ANYWHERE" // Okta required default
+	template.Conditions.AuthContext.AuthType = "ANY"    // Okta required default
 	users, err := policyRuleConditions(d)
 	if err != nil {
 		return err
@@ -555,6 +547,8 @@ func policyRuleSignOn(action string, d *schema.ResourceData, m interface{}) erro
 		}
 	}
 
+	//return fmt.Errorf("%+v", template)
+
 	switch action {
 	case "create":
 		rule, _, err := client.Policies.CreatePolicyRule(d.Get("policyid").(string), template)
@@ -577,11 +571,9 @@ func policyRuleSignOn(action string, d *schema.ResourceData, m interface{}) erro
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", rule)
 
-		if systemPolicyRule == false {
-			err = policyRuleActivate(d, m)
-			if err != nil {
-				return err
-			}
+		err = policyRuleActivate(d, m)
+		if err != nil {
+			return err
 		}
 
 	default:

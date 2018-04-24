@@ -10,14 +10,6 @@ import (
 // global var to determine if our policy is a system policy
 var systemPolicy bool = false
 
-// fields retrieved from the policy in Okta & referenced in our resource functions
-//type policyType struct {
-//ID          string
-//Description string
-//Priority    int
-//System      bool
-//}
-
 func resourcePolicies() *schema.Resource {
 	return &schema.Resource{
 		Create: resourcePolicyCreate,
@@ -26,6 +18,13 @@ func resourcePolicies() *schema.Resource {
 		Delete: resourcePolicyDelete,
 
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
+			// user cannot edit a default policy
+			// editing default Password Policies not supported in the Okta api
+			// please upvote the support request here: https://support.okta.com/help/ideas/viewIdea.apexp?id=0870Z000000SS6mQAG
+			if d.Get("name").(string) == "Default Policy" {
+				return fmt.Errorf("You cannot edit a default Policy")
+			}
+
 			// user cannot change name or type for an existing policy
 			prev, _ := d.GetChange("name")
 			if prev.(string) != "" {
@@ -300,13 +299,6 @@ func resourcePolicyCreate(d *schema.ResourceData, m interface{}) error {
 			return fmt.Errorf("[ERROR] Oath Auth Policy not supported in this terraform provider at this time")
 		}
 	}
-	//if thisPolicy.System == true {
-	//	log.Printf("[INFO] Policy %v is a System Policy, running Resource Policy Update.", d.Get("name").(string))
-	//	err = resourcePolicyUpdate(d, m)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
 
 	return nil
 }
@@ -404,19 +396,6 @@ func policyExists(d *schema.ResourceData, m interface{}) (bool, error) {
 	return true, nil
 }
 
-// system default policies use the Everyone group in the groups condition include, get that group ID
-//func getEveryoneGroup(m interface{}) (string, error) {
-//	client := m.(*Config).oktaClient
-//	groups, _, err := client.Groups.ListGroups("q=Everyone")
-//	if err != nil {
-//		return "error", fmt.Errorf("[ERROR] ListGroups Error querying Everyone Group ID: %v", err)
-//	}
-//	if len(groups.Groups) > 1 {
-//		return "error", fmt.Errorf("[ERROR] Query for Everyone Default Group resulted in more than one group.")
-//	}
-//	return groups.Groups[0].ID, nil
-//}
-
 // populate policy conditions with the terraform schema conditions fields
 func policyConditions(d *schema.ResourceData) ([]string, error) {
 	groups := make([]string, 0)
@@ -469,30 +448,8 @@ func policyPassword(action string, d *schema.ResourceData, m interface{}) error 
 	if err != nil {
 		return err
 	}
+	template.Conditions.AuthProvider.Provider = "OKTA" // okta required default
 	template.Conditions.People.Groups.Include = groups
-
-	//if thisPolicy.System == true {
-	//	template.Status = "ACTIVE"
-	//	template.Description = thisPolicy.Description
-	//	template.Priority = thisPolicy.Priority
-
-	//	everyone, err := getEveryoneGroup(m)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	template.Conditions.People.Groups.Include = []string{everyone}
-
-	//} else {
-	//	template.Description = d.Get("description").(string)
-	//	template.Priority = d.Get("priority").(int)
-	//	template.Status = d.Get("status").(string)
-
-	//	groups, err := policyConditions(d)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	template.Conditions.People.Groups.Include = groups
-	//}
 
 	// Okta defaults
 	// we add the defaults here & not in the schema map to avoid defaults appearing in the terraform plan diff
@@ -603,11 +560,9 @@ func policyPassword(action string, d *schema.ResourceData, m interface{}) error 
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		if systemPolicy == false {
-			err = policyActivate(d, m)
-			if err != nil {
-				return err
-			}
+		err = policyActivate(d, m)
+		if err != nil {
+			return err
 		}
 
 	default:
@@ -637,31 +592,6 @@ func policySignOn(action string, d *schema.ResourceData, m interface{}) error {
 	}
 	template.Conditions.People.Groups.Include = groups
 
-	//template.Name = d.Get("name").(string)
-	//template.Type = d.Get("type").(string)
-	//if thisPolicy.System == true {
-	//	template.Status = "ACTIVE"
-	//	template.Description = thisPolicy.Description
-	//	template.Priority = thisPolicy.Priority
-
-	//	everyone, err := getEveryoneGroup(m)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	template.Conditions.People.Groups.Include = []string{everyone}
-
-	//} else {
-	//	template.Description = d.Get("description").(string)
-	//	template.Priority = d.Get("priority").(int)
-	//	template.Status = d.Get("status").(string)
-
-	//	groups, err := policyConditions(d)
-	//	if err != nil {
-	//		return err
-	//	}
-	//	template.Conditions.People.Groups.Include = groups
-	//}
-
 	switch action {
 	case "create":
 		policy, _, err := client.Policies.CreatePolicy(template)
@@ -684,11 +614,9 @@ func policySignOn(action string, d *schema.ResourceData, m interface{}) error {
 		}
 		log.Printf("[INFO] Okta Policy Updated: %+v", policy)
 
-		if systemPolicy == false {
-			err = policyActivate(d, m)
-			if err != nil {
-				return err
-			}
+		err = policyActivate(d, m)
+		if err != nil {
+			return err
 		}
 
 	default:

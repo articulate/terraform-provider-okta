@@ -11,11 +11,32 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
+func TestAccOktaPolicyRule_defaultErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaPolicyRuleSignOn_defaultErrors(ri)
+	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaPolicyRuleDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("You cannot edit a default Policy Rule"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaPolicyRuleExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
 func TestAccOktaPolicyRules_nameErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn(ri)
 	updatedConfig := testOktaPolicyRuleSignOn_nameErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -26,16 +47,14 @@ func TestAccOktaPolicyRules_nameErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("You cannot change the name field or type field of an existing Policy"),
+				ExpectError: regexp.MustCompile("You cannot change the policyid field, name field, or type field of an existing Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -46,7 +65,6 @@ func TestAccOktaPolicyRules_typeErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn(ri)
 	updatedConfig := testOktaPolicyRuleSignOn_typeErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -57,16 +75,14 @@ func TestAccOktaPolicyRules_typeErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("You cannot change the name field or type field of an existing Policy"),
+				ExpectError: regexp.MustCompile("You cannot change the policyid field, name field, or type field of an existing Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -77,7 +93,6 @@ func TestAccOktaPolicyRules_policyErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn(ri)
 	updatedConfig := testOktaPolicyRuleSignOn_policyErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -88,16 +103,14 @@ func TestAccOktaPolicyRules_policyErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("You cannot change the name field or type field of an existing Policy"),
+				ExpectError: regexp.MustCompile("You cannot change the policyid field, name field, or type field of an existing Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -108,7 +121,6 @@ func TestAccOktaPolicyRuleSignOn(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn(ri)
 	updatedConfig := testOktaPolicyRuleSignOn_updated(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -119,7 +131,6 @@ func TestAccOktaPolicyRuleSignOn(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
@@ -129,7 +140,6 @@ func TestAccOktaPolicyRuleSignOn(t *testing.T) {
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
@@ -149,7 +159,6 @@ func TestAccOktaPolicyRuleSignOn_passErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn(ri)
 	updatedConfig := testOktaPolicyRuleSignOn_passErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -160,16 +169,14 @@ func TestAccOktaPolicyRuleSignOn_passErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("password settings options not supported in the Okta SignOn Policy"),
+				ExpectError: regexp.MustCompile("password action options not supported in the Okta SignOn Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -181,7 +188,6 @@ func TestAccOktaPolicyRulePassword(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRulePassword(ri)
 	updatedConfig := testOktaPolicyRulePassword_updated(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -192,7 +198,6 @@ func TestAccOktaPolicyRulePassword(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "PASSWORD"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
@@ -202,7 +207,6 @@ func TestAccOktaPolicyRulePassword(t *testing.T) {
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "type", "PASSWORD"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
@@ -220,7 +224,6 @@ func TestAccOktaPolicyRulePassword_signonErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRulePassword(ri)
 	updatedConfig := testOktaPolicyRulePassword_signonErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -231,16 +234,14 @@ func TestAccOktaPolicyRulePassword_signonErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("authprovider condition options not supported in the Okta SignOn Policy"),
+				ExpectError: regexp.MustCompile("signon action options not supported in the Okta Password Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -251,7 +252,6 @@ func TestAccOktaPolicyRulePassword_authtErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRulePassword(ri)
 	updatedConfig := testOktaPolicyRulePassword_authtErrors(ri)
-	policyName := "okta_policies.test-" + strconv.Itoa(ri)
 	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
@@ -262,16 +262,14 @@ func TestAccOktaPolicyRulePassword_authtErrors(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
 			{
 				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("authprovider condition options not supported in the Okta SignOn Policy"),
+				ExpectError: regexp.MustCompile("authtype condition options not supported in the Okta Password Policy Rule"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(policyName),
 					testOktaPolicyRuleExists(resourceName),
 				),
 			},
@@ -286,7 +284,7 @@ func testOktaPolicyRuleExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("[ERROR] Resource Not found: %s", name)
 		}
 
-		policyID, hasP := rs.Primary.Attributes["policyID"]
+		policyID, hasP := rs.Primary.Attributes["policyid"]
 		if !hasP {
 			return fmt.Errorf("[ERROR] No policy ID found in state for Policy Rule")
 		}
@@ -310,11 +308,11 @@ func testOktaPolicyRuleExists(name string) resource.TestCheckFunc {
 
 func testOktaPolicyRuleDestroy(s *terraform.State) error {
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "okta_policies" {
+		if rs.Type != "okta_policy_rules" {
 			continue
 		}
 
-		policyID, hasP := rs.Primary.Attributes["policyID"]
+		policyID, hasP := rs.Primary.Attributes["policyid"]
 		if !hasP {
 			return fmt.Errorf("[ERROR] No policy ID found in state for Policy Rule")
 		}
@@ -365,37 +363,31 @@ func testPolicyRuleExists(expected bool, policyID string, ruleID, ruleName strin
 
 func testOktaPolicyRuleSignOn(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "OKTA_SIGN_ON"
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRuleSignOn_updated(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "OKTA_SIGN_ON"
   name     = "testAcc-%d"
   priority = 999
-  status   = "ACTIVE"
+  status   = "INACTIVE"
   actions {
     signon {
       access           = "DENY"
@@ -405,52 +397,58 @@ resource "okta_policy_rules" "test-%d" {
     }
   }
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
+}
+
+func testOktaPolicyRuleSignOn_defaultErrors(rInt int) string {
+	return fmt.Sprintf(`
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
+}
+
+resource "okta_policy_rules" "test-%d" {
+  policyid = "${data.okta_default_policies.default-%d.id}"
+  type     = "OKTA_SIGN_ON"
+  name     = "Default Rule"
+  status   = "ACTIVE"
+}
+`, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRuleSignOn_nameErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "OKTA_SIGN_ON"
   name     = "testAccChanged-%d"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRuleSignOn_typeErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "PASSWORD"
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRuleSignOn_policyErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
@@ -459,20 +457,17 @@ resource "okta_policy_rules" "test-%d" {
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRuleSignOn_passErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "OKTA_SIGN_ON"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "OKTA_SIGN_ON"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "OKTA_SIGN_ON"
   name     = "testAcc-%d"
   status   = "ACTIVE"
@@ -482,41 +477,36 @@ resource "okta_policy_rules" "test-%d" {
     }
   }
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRulePassword(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "PASSWORD"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "PASSWORD"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "PASSWORD"
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRulePassword_updated(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "PASSWORD"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "PASSWORD"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "PASSWORD"
   name     = "testAcc-%d"
-  status   = "ACTIVE"
+  priority = 999
+  status   = "INACTIVE"
   actions {
     password {
       passwordchange = "DENY"
@@ -525,20 +515,17 @@ resource "okta_policy_rules" "test-%d" {
     }
   }
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRulePassword_signonErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "PASSWORD"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "PASSWORD"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "PASSWORD"
   name     = "testAcc-%d"
   status   = "ACTIVE"
@@ -548,26 +535,23 @@ resource "okta_policy_rules" "test-%d" {
     }
   }
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }
 
 func testOktaPolicyRulePassword_authtErrors(rInt int) string {
 	return fmt.Sprintf(`
-resource "okta_policies" "test-%d" {
-  type        = "PASSWORD"
-  name        = "testAcc-%d"
-  description = "Terraform Acceptance Test"
-  status      = "ACTIVE"
+data "okta_default_policies" "default-%d" {
+  type = "PASSWORD"
 }
 
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${okta_policies.test-%d.id}"
+  policyid = "${data.okta_default_policies.default-%d.id}"
   type     = "PASSWORD"
   name     = "testAcc-%d"
   status   = "ACTIVE"
-  condtions {
+  conditions {
     authtype = "RADIUS"
   }
 }
-`, rInt, rInt, rInt, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }

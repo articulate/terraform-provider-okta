@@ -11,6 +11,28 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
+func TestAccOktaPolicies_defaultErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaPolicySignOn_defaultErrors(ri)
+	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaPolicyDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("You cannot edit a default Policy"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaPolicyExists(resourceName),
+				),
+			},
+		},
+	})
+}
+
 func TestAccOktaPolicies_nameErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicySignOn(ri)
@@ -39,6 +61,7 @@ func TestAccOktaPolicies_nameErrors(t *testing.T) {
 		},
 	})
 }
+
 func TestAccOktaPolicies_typeErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicySignOn(ri)
@@ -67,6 +90,7 @@ func TestAccOktaPolicies_typeErrors(t *testing.T) {
 		},
 	})
 }
+
 func TestAccOktaPolicySignOn(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicySignOn(ri)
@@ -210,7 +234,6 @@ func TestAccOktaPolicyPassword(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.questionminlength", "10"),
 					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.recoveryemailtoken", "20160"),
 					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.smsrecovery", "ACTIVE"),
-					resource.TestCheckResourceAttr(resourceName, "settings.0.password.0.skipunlock", "true"),
 				),
 			},
 		},
@@ -299,9 +322,7 @@ resource "okta_policies" "test-%d" {
 
 func testOktaPolicySignOn_updated(rInt int) string {
 	return fmt.Sprintf(`
-data "okta_groups" "everyone" {
-  name = "Everyone"
-}
+data "okta_everyone_group" "everyone-%d" {}
 
 resource "okta_policies" "test-%d" {
   type        = "OKTA_SIGN_ON"
@@ -310,10 +331,21 @@ resource "okta_policies" "test-%d" {
   priority    = 999
   description = "Terraform Acceptance Test SignOn Policy Updated"
   conditions {
-    groups = [ "${data.okta_groups.everyone.id}" ]
+    groups = [ "${data.okta_everyone_group.everyone-%d.id}" ]
   }
 }
-`, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
+}
+
+func testOktaPolicySignOn_defaultErrors(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_policies" "test-%d" {
+  type        = "OKTA_SIGN_ON"
+  name        = "Default Policy"
+  status      = "ACTIVE"
+  description = "Terraform Acceptance Test SignOn Policy"
+}
+`, rInt)
 }
 
 func testOktaPolicySignOn_nameErrors(rInt int) string {
@@ -380,11 +412,12 @@ resource "okta_policies" "test-%d" {
 `, rInt, rInt)
 }
 
+// cannot change skipunlock to "true" if the authprovider is OKTA
+// unless PASSWORD_POLICY_SOFT_LOCK is enabled
+// (not supported in this TF provider at this time)
 func testOktaPolicyPassword_updated(rInt int) string {
 	return fmt.Sprintf(`
-data "okta_groups" "everyone" {
-  name = "Everyone"
-}
+data "okta_everyone_group" "everyone-%d" {}
 
 resource "okta_policies" "test-%d" {
   type        = "PASSWORD"
@@ -393,7 +426,7 @@ resource "okta_policies" "test-%d" {
   priority    = 999
   description = "Terraform Acceptance Test Password Policy Updated"
   conditions {
-    groups = [ "${data.okta_groups.everyone.id}" ]
+    groups = [ "${data.okta_everyone_group.everyone-%d.id}" ]
   }
   settings {
     password {
@@ -415,9 +448,8 @@ resource "okta_policies" "test-%d" {
       questionminlength = 10
       recoveryemailtoken = 20160
       smsrecovery = "ACTIVE"
-      skipunlock = true
     }
   }
 }
-`, rInt, rInt)
+`, rInt, rInt, rInt, rInt)
 }

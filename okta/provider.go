@@ -42,7 +42,8 @@ func Provider() terraform.ResourceProvider {
 		},
 
 		DataSourcesMap: map[string]*schema.Resource{
-			"okta_groups": dataSourceGroups(),
+			"okta_everyone_group":   dataSourceEveryoneGroup(),
+			"okta_default_policies": dataSourceDefaultPolicies(),
 		},
 
 		ConfigureFunc: providerConfigure,
