@@ -50,13 +50,6 @@ func resourcePolicyRules() *schema.Resource {
 
 			}
 
-			// network condition zones include & exclude are exclusive
-			//if len(d.Get("conditions.0.network.0.include").([]interface{})) > 0 {
-			//	if len(d.Get("conditions.0.network.0.exclude").([]interface{})) > 0 {
-			//		return fmt.Errorf("You cannot set both include and exclude network condition zones")
-			//	}
-			//}
-
 			return nil
 		},
 
