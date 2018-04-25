@@ -8,6 +8,8 @@ import (
 	"github.com/hashicorp/terraform/helper/validation"
 )
 
+// data source to retrieve information on a Default Policy
+
 func dataSourceDefaultPolicies() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceDefaultPolicyRead,

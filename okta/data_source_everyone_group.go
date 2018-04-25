@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform/helper/schema"
 )
 
+// data source to retrieve information on the Everyone Group
+
 func dataSourceEveryoneGroup() *schema.Resource {
 	return &schema.Resource{
 		Read: dataSourceEveryoneGroupRead,
