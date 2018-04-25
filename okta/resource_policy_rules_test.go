@@ -14,20 +14,15 @@ import (
 func TestAccOktaPolicyRule_defaultErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicyRuleSignOn_defaultErrors(ri)
-	resourceName := "okta_policy_rules.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testOktaPolicyRuleDestroy,
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config:      config,
 				ExpectError: regexp.MustCompile("You cannot edit a default Policy Rule"),
 				PlanOnly:    true,
-				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyRuleExists(resourceName),
-				),
 			},
 		},
 	})
@@ -132,7 +127,7 @@ func TestAccOktaPolicyRuleSignOn(t *testing.T) {
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
 					testOktaPolicyRuleExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
+					resource.TestCheckResourceAttr(resourceName, "type", "SIGN_ON"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
 				),
@@ -141,7 +136,7 @@ func TestAccOktaPolicyRuleSignOn(t *testing.T) {
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
 					testOktaPolicyRuleExists(resourceName),
-					resource.TestCheckResourceAttr(resourceName, "type", "OKTA_SIGN_ON"),
+					resource.TestCheckResourceAttr(resourceName, "type", "SIGN_ON"),
 					resource.TestCheckResourceAttr(resourceName, "name", "testAcc-"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "status", "INACTIVE"),
 					resource.TestCheckResourceAttr(resourceName, "priority", "999"),
@@ -369,7 +364,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "${data.okta_default_policies.default-%d.id}"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
@@ -384,7 +379,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "${data.okta_default_policies.default-%d.id}"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "testAcc-%d"
   priority = 999
   status   = "INACTIVE"
@@ -408,7 +403,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "${data.okta_default_policies.default-%d.id}"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "Default Rule"
   status   = "ACTIVE"
 }
@@ -423,7 +418,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "${data.okta_default_policies.default-%d.id}"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "testAccChanged-%d"
   status   = "ACTIVE"
 }
@@ -453,7 +448,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "changedPolicyID"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "testAcc-%d"
   status   = "ACTIVE"
 }
@@ -468,7 +463,7 @@ data "okta_default_policies" "default-%d" {
 
 resource "okta_policy_rules" "test-%d" {
   policyid = "${data.okta_default_policies.default-%d.id}"
-  type     = "OKTA_SIGN_ON"
+  type     = "SIGN_ON"
   name     = "testAcc-%d"
   status   = "ACTIVE"
   actions {

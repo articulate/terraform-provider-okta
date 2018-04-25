@@ -41,7 +41,7 @@ func resourcePolicyRules() *schema.Resource {
 					return fmt.Errorf("signon action options not supported in the Okta Password Policy Rule")
 				}
 
-			case "OKTA_SIGN_ON":
+			case "SIGN_ON":
 				if len(d.Get("actions.0.password").([]interface{})) > 0 {
 					return fmt.Errorf("password action options not supported in the Okta SignOn Policy Rule")
 				}
@@ -62,8 +62,8 @@ func resourcePolicyRules() *schema.Resource {
 			"type": &schema.Schema{
 				Type:         schema.TypeString,
 				Required:     true,
-				ValidateFunc: validation.StringInSlice([]string{"OKTA_SIGN_ON", "PASSWORD", "MFA_ENROLL"}, false),
-				Description:  "Policy Rule Type: OKTA_SIGN_ON, PASSWORD, or MFA_ENROLL",
+				ValidateFunc: validation.StringInSlice([]string{"SIGN_ON", "PASSWORD", "MFA_ENROLL"}, false),
+				Description:  "Policy Rule Type: SIGN_ON, PASSWORD, or MFA_ENROLL",
 			},
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
@@ -260,7 +260,7 @@ func resourcePolicyRuleCreate(d *schema.ResourceData, m interface{}) error {
 				return err
 			}
 
-		case "OKTA_SIGN_ON":
+		case "SIGN_ON":
 			err = policyRuleSignOn("create", d, m)
 			if err != nil {
 				return err
@@ -307,7 +307,7 @@ func resourcePolicyRuleUpdate(d *schema.ResourceData, m interface{}) error {
 				return err
 			}
 
-		case "OKTA_SIGN_ON":
+		case "SIGN_ON":
 			err = policyRuleSignOn("update", d, m)
 			if err != nil {
 				return err

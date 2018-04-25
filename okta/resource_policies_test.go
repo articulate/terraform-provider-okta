@@ -14,20 +14,15 @@ import (
 func TestAccOktaPolicies_defaultErrors(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaPolicySignOn_defaultErrors(ri)
-	resourceName := "okta_policies.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testOktaPolicyDestroy,
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
 		Steps: []resource.TestStep{
 			{
 				Config:      config,
 				ExpectError: regexp.MustCompile("You cannot edit a default Policy"),
 				PlanOnly:    true,
-				Check: resource.ComposeTestCheckFunc(
-					testOktaPolicyExists(resourceName),
-				),
 			},
 		},
 	})
