@@ -397,17 +397,13 @@ resource "okta_policy_rules" "test-%d" {
 
 func testOktaPolicyRuleSignOn_defaultErrors(rInt int) string {
 	return fmt.Sprintf(`
-data "okta_default_policies" "default-%d" {
-  type = "OKTA_SIGN_ON"
-}
-
 resource "okta_policy_rules" "test-%d" {
-  policyid = "${data.okta_default_policies.default-%d.id}"
+  policyid = "garbageID"
   type     = "SIGN_ON"
   name     = "Default Rule"
   status   = "ACTIVE"
 }
-`, rInt, rInt, rInt)
+`, rInt)
 }
 
 func testOktaPolicyRuleSignOn_nameErrors(rInt int) string {
