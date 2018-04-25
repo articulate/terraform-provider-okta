@@ -540,8 +540,6 @@ func policyRuleSignOn(action string, d *schema.ResourceData, m interface{}) erro
 		}
 	}
 
-	//return fmt.Errorf("%+v", template)
-
 	switch action {
 	case "create":
 		rule, _, err := client.Policies.CreatePolicyRule(d.Get("policyid").(string), template)
