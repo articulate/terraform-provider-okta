@@ -51,14 +51,14 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 	filter := client.Users.UserListFilterOptions()
 	filter.EmailEqualTo = d.Get("email").(string)
 	newUser, _, err := client.Users.ListWithFilter(&filter)
-	if len(newUser) == 0  {
+	if len(newUser) == 0 {
 		userTemplate("create", d, m)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
-	if len(newUser) > 1  {
+	if len(newUser) > 1 {
 		return fmt.Errorf("[ERROR] Retrieved more than one Okta user for the email %v", d.Get("email").(string))
 	}
 	log.Printf("[INFO] User already exists in Okta. Adding to Terraform")
