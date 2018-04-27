@@ -15,26 +15,21 @@ func resourceUsers() *schema.Resource {
 		Delete: resourceUserDelete,
 
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
-			// user cannot change login or email for an existing user
+			// user cannot change the email field for an existing user
 			prev, _ := d.GetChange("email")
 			if prev.(string) != "" {
-				if d.HasChange("login") || d.HasChange("email") {
-					return fmt.Errorf("You cannot change the login field or email field for an existing User")
+				if d.HasChange("email") {
+					return fmt.Errorf("You cannot change the email field for an existing User")
 				}
 			}
 			return nil
 		},
 
 		Schema: map[string]*schema.Schema{
-			"login": &schema.Schema{
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "User Okta login",
-			},
 			"email": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "User primary email address",
+				Description: "User Okta login & primary email address",
 			},
 			"firstname": &schema.Schema{
 				Type:        schema.TypeString,
@@ -291,12 +286,8 @@ func userTemplate(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Users.NewUser()
-	if _, ok := d.GetOk("login"); ok {
-		template.Profile.Login = d.Get("login").(string)
-	} else {
-		template.Profile.Login = d.Get("email").(string)
-	}
 	template.Profile.Email = d.Get("email").(string)
+	template.Profile.Login = d.Get("email").(string)
 	template.Profile.FirstName = d.Get("firstname").(string)
 	template.Profile.LastName = d.Get("lastname").(string)
 	if _, ok := d.GetOk("middlename"); ok {
