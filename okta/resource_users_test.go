@@ -42,6 +42,33 @@ func TestAccOktaUsers(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "lastname", strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "email", "Witiz1932@teleworm.us"),
 					resource.TestCheckResourceAttr(resourceName, "role", "READ_ONLY_ADMIN"),
+					resource.TestCheckResourceAttr(resourceName, "middlename", "George"),
+					resource.TestCheckResourceAttr(resourceName, "secondemail", "test@testy.com"),
+					resource.TestCheckResourceAttr(resourceName, "honprefix", "Mersh"),
+					resource.TestCheckResourceAttr(resourceName, "honsuffix", "Esq"),
+					resource.TestCheckResourceAttr(resourceName, "title", "Chief Microwave Officer"),
+					resource.TestCheckResourceAttr(resourceName, "displayname", "Roger"),
+					resource.TestCheckResourceAttr(resourceName, "nickname", "Big Little"),
+					resource.TestCheckResourceAttr(resourceName, "profileurl", "http://www.roger.awesomewebsite.com"),
+					resource.TestCheckResourceAttr(resourceName, "primaryphone", "1-212-555-5555"),
+					resource.TestCheckResourceAttr(resourceName, "mobilephone", "1-212-555-5555"),
+					resource.TestCheckResourceAttr(resourceName, "streetaddress", "1234 Main St"),
+					resource.TestCheckResourceAttr(resourceName, "city", "New York"),
+					resource.TestCheckResourceAttr(resourceName, "state", "New York"),
+					resource.TestCheckResourceAttr(resourceName, "zipcode", "11111"),
+					resource.TestCheckResourceAttr(resourceName, "countrycode", "USA"),
+					resource.TestCheckResourceAttr(resourceName, "postaladdress", "1234 Main St New York, 11111"),
+					resource.TestCheckResourceAttr(resourceName, "language", "en-us"),
+					resource.TestCheckResourceAttr(resourceName, "locale", "en_US"),
+					resource.TestCheckResourceAttr(resourceName, "timezone", "America/New_York"),
+					resource.TestCheckResourceAttr(resourceName, "usertype", "Employee"),
+					resource.TestCheckResourceAttr(resourceName, "empnumber", "1"),
+					resource.TestCheckResourceAttr(resourceName, "costcenter", "1"),
+					resource.TestCheckResourceAttr(resourceName, "organization", "lunch crew"),
+					resource.TestCheckResourceAttr(resourceName, "division", "dessert"),
+					resource.TestCheckResourceAttr(resourceName, "department", "cookies"),
+					resource.TestCheckResourceAttr(resourceName, "managerid", "2"),
+					resource.TestCheckResourceAttr(resourceName, "manager", "David Brent"),
 				),
 			},
 		},
@@ -191,10 +218,37 @@ resource "okta_users" "test-%d" {
 func testOktaUsers_updated(rInt int) string {
 	return fmt.Sprintf(`
 resource "okta_users" "test-%d" {
-  firstname = "testAcc_updated"
-  lastname  = "%d"
-  email     = "Witiz1932@teleworm.us"
-  role      = "READ_ONLY_ADMIN"
+  firstname     = "testAcc_updated"
+  lastname      = "%d"
+  email         = "Witiz1932@teleworm.us"
+  role          = "READ_ONLY_ADMIN"
+  middlename    = "George"
+  secondemail   = "test@testy.com"
+  honprefix     = "Mersh"
+  honsuffix     = "Esq"
+  title         = "Chief Microwave Officer"
+  displayname   = "Roger"
+  nickname      = "Big Little"
+  profileurl    = "http://www.roger.awesomewebsite.com"
+  primaryphone  = "1-212-555-5555"
+  mobilephone   = "1-212-555-5555"
+  streetaddress = "1234 Main St"
+  city          = "New York"
+  state         = "New York"
+  zipcode       = "11111"
+  countrycode   = "USA"
+  postaladdress = "1234 Main St New York, 11111"
+  language      = "en-us"
+  locale        = "en_US"
+  timezone      = "America/New_York"
+  usertype      = "Employee"
+  empnumber     = "1"
+  costcenter    = "1"
+  organization  = "lunch crew"
+  division      = "dessert"
+  department    = "cookies"
+  managerid     = "2"
+  manager       = "David Brent"
 }
 `, rInt, rInt)
 }

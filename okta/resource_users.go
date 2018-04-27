@@ -14,7 +14,28 @@ func resourceUsers() *schema.Resource {
 		Update: resourceUserUpdate,
 		Delete: resourceUserDelete,
 
+		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
+			// user cannot change login or email for an existing user
+			prev, _ := d.GetChange("email")
+			if prev.(string) != "" {
+				if d.HasChange("login") || d.HasChange("email") {
+					return fmt.Errorf("You cannot change the login field or email field for an existing User")
+				}
+			}
+			return nil
+		},
+
 		Schema: map[string]*schema.Schema{
+			"login": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User Okta login",
+			},
+			"email": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "User primary email address",
+			},
 			"firstname": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
@@ -25,20 +46,145 @@ func resourceUsers() *schema.Resource {
 				Required:    true,
 				Description: "User last name",
 			},
-			"email": &schema.Schema{
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "User email address",
-			},
-			"login": &schema.Schema{
+			"middlename": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
-				Description: "User Okta login",
+				Description: "User middle name",
 			},
 			"role": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "User Okta role",
+			},
+			"secondemail": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User secondary email address, used for account recovery",
+			},
+			"honprefix": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User honorific prefix",
+			},
+			"honsuffix": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User honorific suffix",
+			},
+			"title": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User title",
+			},
+			"displayname": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User display name, suitable to show end users",
+			},
+			"nickname": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User nickname",
+			},
+			"profileurl": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User online profile (web page)",
+			},
+			"primaryphone": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User primary phone number",
+			},
+			"mobilephone": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User mobile phone number",
+			},
+			"streetaddress": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User street address",
+			},
+			"city": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User city",
+			},
+			"state": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User state or region",
+			},
+			"zipcode": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User zipcode or postal code",
+			},
+			"countrycode": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User country code",
+			},
+			"postaladdress": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User mailing address",
+			},
+			"language": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User preferred language",
+			},
+			"locale": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User default location",
+			},
+			"timezone": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User default timezone",
+			},
+			"usertype": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User employee type",
+			},
+			"empnumber": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User employee number",
+			},
+			"costcenter": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User cost center",
+			},
+			"organization": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User organization",
+			},
+			"division": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User division",
+			},
+			"department": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User department",
+			},
+			"managerid": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Manager ID of User",
+			},
+			"manager": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Manager of User",
 			},
 		},
 	}
@@ -48,6 +194,7 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Creating User %v", d.Get("email").(string))
 	client := m.(*Config).oktaClient
 
+	// check if our user exists in Okta, search by email
 	filter := client.Users.UserListFilterOptions()
 	filter.EmailEqualTo = d.Get("email").(string)
 	newUser, _, err := client.Users.ListWithFilter(&filter)
@@ -144,13 +291,94 @@ func userTemplate(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Users.NewUser()
-	template.Profile.FirstName = d.Get("firstname").(string)
-	template.Profile.LastName = d.Get("lastname").(string)
-	template.Profile.Email = d.Get("email").(string)
 	if _, ok := d.GetOk("login"); ok {
 		template.Profile.Login = d.Get("login").(string)
 	} else {
 		template.Profile.Login = d.Get("email").(string)
+	}
+	template.Profile.Email = d.Get("email").(string)
+	template.Profile.FirstName = d.Get("firstname").(string)
+	template.Profile.LastName = d.Get("lastname").(string)
+	if _, ok := d.GetOk("middlename"); ok {
+		template.Profile.MiddleName = d.Get("middlename").(string)
+	}
+	if _, ok := d.GetOk("secondemail"); ok {
+		template.Profile.SecondEmail = d.Get("secondemail").(string)
+	}
+	if _, ok := d.GetOk("honprefix"); ok {
+		template.Profile.HonPrefix = d.Get("honprefix").(string)
+	}
+	if _, ok := d.GetOk("honsuffix"); ok {
+		template.Profile.HonSuffix = d.Get("honsuffix").(string)
+	}
+	if _, ok := d.GetOk("title"); ok {
+		template.Profile.Title = d.Get("title").(string)
+	}
+	if _, ok := d.GetOk("displayname"); ok {
+		template.Profile.DisplayName = d.Get("displayname").(string)
+	}
+	if _, ok := d.GetOk("nickname"); ok {
+		template.Profile.NickName = d.Get("nickname").(string)
+	}
+	if _, ok := d.GetOk("profileurl"); ok {
+		template.Profile.ProfileURL = d.Get("profileurl").(string)
+	}
+	if _, ok := d.GetOk("primaryphone"); ok {
+		template.Profile.PrimaryPhone = d.Get("primaryphone").(string)
+	}
+	if _, ok := d.GetOk("mobilephone"); ok {
+		template.Profile.MobilePhone = d.Get("mobilephone").(string)
+	}
+	if _, ok := d.GetOk("streetaddress"); ok {
+		template.Profile.StreetAddress = d.Get("streetaddress").(string)
+	}
+	if _, ok := d.GetOk("city"); ok {
+		template.Profile.City = d.Get("city").(string)
+	}
+	if _, ok := d.GetOk("state"); ok {
+		template.Profile.State = d.Get("state").(string)
+	}
+	if _, ok := d.GetOk("zipcode"); ok {
+		template.Profile.ZipCode = d.Get("zipcode").(string)
+	}
+	if _, ok := d.GetOk("countrycode"); ok {
+		template.Profile.CountryCode = d.Get("countrycode").(string)
+	}
+	if _, ok := d.GetOk("postaladdress"); ok {
+		template.Profile.PostalAddress = d.Get("postaladdress").(string)
+	}
+	if _, ok := d.GetOk("language"); ok {
+		template.Profile.PreferredLanguage = d.Get("language").(string)
+	}
+	if _, ok := d.GetOk("locale"); ok {
+		template.Profile.Locale = d.Get("locale").(string)
+	}
+	if _, ok := d.GetOk("timezone"); ok {
+		template.Profile.Timezone = d.Get("timezone").(string)
+	}
+	if _, ok := d.GetOk("usertype"); ok {
+		template.Profile.UserType = d.Get("usertype").(string)
+	}
+	if _, ok := d.GetOk("empnumber"); ok {
+		template.Profile.EmployeeNumber = d.Get("empnumber").(string)
+	}
+	if _, ok := d.GetOk("costcenter"); ok {
+		template.Profile.CostCenter = d.Get("costcenter").(string)
+	}
+	if _, ok := d.GetOk("organization"); ok {
+		template.Profile.Organization = d.Get("organization").(string)
+	}
+	if _, ok := d.GetOk("division"); ok {
+		template.Profile.Division = d.Get("division").(string)
+	}
+	if _, ok := d.GetOk("department"); ok {
+		template.Profile.Department = d.Get("department").(string)
+	}
+	if _, ok := d.GetOk("managerid"); ok {
+		template.Profile.ManagerID = d.Get("managerid").(string)
+	}
+	if _, ok := d.GetOk("manager"); ok {
+		template.Profile.Manager = d.Get("manager").(string)
 	}
 
 	switch action {
