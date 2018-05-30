@@ -3,6 +3,7 @@ package okta
 import (
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/hashicorp/terraform/helper/schema"
 )
@@ -15,21 +16,36 @@ func resourceUsers() *schema.Resource {
 		Delete: resourceUserDelete,
 
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
-			// user cannot change the email field for an existing user
-			prev, _ := d.GetChange("email")
+			//for an existing user, the login field cannot change
+			prev, _ := d.GetChange("login")
 			if prev.(string) != "" {
-				if d.HasChange("email") {
-					return fmt.Errorf("You cannot change the email field for an existing User")
+				if d.HasChange("login") {
+					return fmt.Errorf("You cannot change the login field for an existing User")
+				}
+			}
+			//regex lovingly lifted from: http://www.golangprograms.com/regular-expression-to-validate-email-address.html
+			re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+			if re.MatchString(d.Get("login").(string)) == false {
+				return fmt.Errorf("Login field not a valid email address")
+			}
+			if _, ok := d.GetOk("email"); ok {
+				if re.MatchString(d.Get("email").(string)) == false {
+					return fmt.Errorf("Email field not a valid email address")
 				}
 			}
 			return nil
 		},
 
 		Schema: map[string]*schema.Schema{
-			"email": &schema.Schema{
+			"login": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "User Okta login & primary email address",
+				Description: "User Okta login (must be an email address)",
+			},
+			"email": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User primary email address. Default = user login",
 			},
 			"firstname": &schema.Schema{
 				Type:        schema.TypeString,
@@ -186,12 +202,12 @@ func resourceUsers() *schema.Resource {
 }
 
 func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
-	log.Printf("[INFO] Creating User %v", d.Get("email").(string))
+	log.Printf("[INFO] Creating User %v", d.Get("login").(string))
 	client := m.(*Config).oktaClient
 
-	// check if our user exists in Okta, search by email
+	// check if our user exists in Okta, search by login
 	filter := client.Users.UserListFilterOptions()
-	filter.EmailEqualTo = d.Get("email").(string)
+	filter.LoginEqualTo = d.Get("login").(string)
 	newUser, _, err := client.Users.ListWithFilter(&filter)
 	if len(newUser) == 0 {
 		userTemplate("create", d, m)
@@ -201,7 +217,7 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 		return nil
 	}
 	if len(newUser) > 1 {
-		return fmt.Errorf("[ERROR] Retrieved more than one Okta user for the email %v", d.Get("email").(string))
+		return fmt.Errorf("[ERROR] Retrieved more than one Okta user for the login %v", d.Get("login").(string))
 	}
 	log.Printf("[INFO] User already exists in Okta. Adding to Terraform")
 	// add the user resource to terraform
@@ -211,7 +227,7 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceUserRead(d *schema.ResourceData, m interface{}) error {
-	log.Printf("[INFO] List User %v", d.Get("email").(string))
+	log.Printf("[INFO] List User %v", d.Get("login").(string))
 	client := m.(*Config).oktaClient
 
 	_, _, err := client.Users.GetByID(d.Id())
@@ -239,7 +255,7 @@ func resourceUserRead(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceUserUpdate(d *schema.ResourceData, m interface{}) error {
-	log.Printf("[INFO] Update User %v", d.Get("email").(string))
+	log.Printf("[INFO] Update User %v", d.Get("login").(string))
 	client := m.(*Config).oktaClient
 	d.Partial(true)
 
@@ -257,7 +273,7 @@ func resourceUserUpdate(d *schema.ResourceData, m interface{}) error {
 }
 
 func resourceUserDelete(d *schema.ResourceData, m interface{}) error {
-	log.Printf("[INFO] Delete User %v", d.Get("email").(string))
+	log.Printf("[INFO] Delete User %v", d.Get("login").(string))
 	client := m.(*Config).oktaClient
 
 	userList, _, err := client.Users.GetByID(d.Id())
@@ -286,10 +302,13 @@ func userTemplate(action string, d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
 	template := client.Users.NewUser()
-	template.Profile.Email = d.Get("email").(string)
-	template.Profile.Login = d.Get("email").(string)
+	template.Profile.Login = d.Get("login").(string)
+	template.Profile.Email = d.Get("login").(string)
 	template.Profile.FirstName = d.Get("firstname").(string)
 	template.Profile.LastName = d.Get("lastname").(string)
+	if _, ok := d.GetOk("email"); ok {
+		template.Profile.Email = d.Get("email").(string)
+	}
 	if _, ok := d.GetOk("middlename"); ok {
 		template.Profile.MiddleName = d.Get("middlename").(string)
 	}

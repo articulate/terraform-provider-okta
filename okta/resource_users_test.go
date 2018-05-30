@@ -2,6 +2,7 @@ package okta
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"testing"
 
@@ -12,6 +13,52 @@ import (
 
 // Witiz1932@teleworm.us is a fake email address created at fakemailgenerator.com
 // view inbox: http://www.fakemailgenerator.com/inbox/teleworm.us/witiz1932/
+
+func TestAccOktaUsers_emailErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaUsers_emailErrors(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("Login field not a valid email address"),
+				PlanOnly:    true,
+			},
+		},
+	})
+}
+
+func TestAccOktaUsers_loginErrors(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaUsers(ri)
+	updatedConfig := testOktaUsers_loginChange(ri)
+	resourceName := "okta_users.test-" + strconv.Itoa(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaUsersDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaUsersExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("You cannot change the login field for an existing User"),
+				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaUsersExists(resourceName),
+				),
+			},
+		},
+	})
+}
 
 func TestAccOktaUsers(t *testing.T) {
 	ri := acctest.RandInt()
@@ -30,7 +77,7 @@ func TestAccOktaUsers(t *testing.T) {
 					testOktaUsersExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "firstname", "testAcc"),
 					resource.TestCheckResourceAttr(resourceName, "lastname", strconv.Itoa(ri)),
-					resource.TestCheckResourceAttr(resourceName, "email", "Witiz1932@teleworm.us"),
+					resource.TestCheckResourceAttr(resourceName, "login", "Witiz1932@teleworm.us"),
 					resource.TestCheckResourceAttr(resourceName, "role", "SUPER_ADMIN"),
 				),
 			},
@@ -40,7 +87,8 @@ func TestAccOktaUsers(t *testing.T) {
 					testOktaUsersExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "firstname", "testAcc_updated"),
 					resource.TestCheckResourceAttr(resourceName, "lastname", strconv.Itoa(ri)),
-					resource.TestCheckResourceAttr(resourceName, "email", "Witiz1932@teleworm.us"),
+					resource.TestCheckResourceAttr(resourceName, "login", "Witiz1932@teleworm.us"),
+					resource.TestCheckResourceAttr(resourceName, "email", "Witiz666@teleworm.us"),
 					resource.TestCheckResourceAttr(resourceName, "role", "READ_ONLY_ADMIN"),
 					resource.TestCheckResourceAttr(resourceName, "middlename", "George"),
 					resource.TestCheckResourceAttr(resourceName, "secondemail", "test@testy.com"),
@@ -92,7 +140,7 @@ func TestAccOktaUsersRole_delete(t *testing.T) {
 					testOktaUsersExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "firstname", "testAcc"),
 					resource.TestCheckResourceAttr(resourceName, "lastname", strconv.Itoa(ri)),
-					resource.TestCheckResourceAttr(resourceName, "email", "Witiz1932@teleworm.us"),
+					resource.TestCheckResourceAttr(resourceName, "login", "Witiz1932@teleworm.us"),
 					resource.TestCheckResourceAttr(resourceName, "role", "SUPER_ADMIN"),
 				),
 			},
@@ -102,7 +150,7 @@ func TestAccOktaUsersRole_delete(t *testing.T) {
 					testOktaUsersExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "firstname", "testAcc_role_delete"),
 					resource.TestCheckResourceAttr(resourceName, "lastname", strconv.Itoa(ri)),
-					resource.TestCheckResourceAttr(resourceName, "email", "Witiz1932@teleworm.us"),
+					resource.TestCheckResourceAttr(resourceName, "login", "Witiz1932@teleworm.us"),
 					resource.TestCheckResourceAttr(resourceName, "role", ""),
 				),
 			},
@@ -209,7 +257,7 @@ func testOktaUsers(rInt int) string {
 resource "okta_users" "test-%d" {
   firstname = "testAcc"
   lastname  = "%d"
-  email     = "Witiz1932@teleworm.us"
+  login     = "Witiz1932@teleworm.us"
   role      = "SUPER_ADMIN"
 }
 `, rInt, rInt)
@@ -220,7 +268,8 @@ func testOktaUsers_updated(rInt int) string {
 resource "okta_users" "test-%d" {
   firstname     = "testAcc_updated"
   lastname      = "%d"
-  email         = "Witiz1932@teleworm.us"
+  login         = "Witiz1932@teleworm.us"
+  email         = "Witiz666@teleworm.us"
   role          = "READ_ONLY_ADMIN"
   middlename    = "George"
   secondemail   = "test@testy.com"
@@ -253,12 +302,34 @@ resource "okta_users" "test-%d" {
 `, rInt, rInt)
 }
 
+func testOktaUsers_loginChange(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_users" "test-%d" {
+  firstname = "testAcc"
+  lastname  = "%d"
+  login     = "Witiz666@teleworm.us"
+  role      = "SUPER_ADMIN"
+}
+`, rInt, rInt)
+}
+
+func testOktaUsers_emailErrors(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_users" "test-%d" {
+  firstname = "testAcc"
+  lastname  = "%d"
+  login     = "notavalidemail"
+  role      = "SUPER_ADMIN"
+}
+`, rInt, rInt)
+}
+
 func testOktaUsersRole_delete(rInt int) string {
 	return fmt.Sprintf(`
 resource "okta_users" "test-%d" {
   firstname = "testAcc_role_delete"
   lastname  = "%d"
-  email     = "Witiz1932@teleworm.us"
+  login     = "Witiz1932@teleworm.us"
 }
 `, rInt, rInt)
 }
