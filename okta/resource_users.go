@@ -18,10 +18,8 @@ func resourceUsers() *schema.Resource {
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
 			//for an existing user, the login field cannot change
 			prev, _ := d.GetChange("login")
-			if prev.(string) != "" {
-				if d.HasChange("login") {
-					return fmt.Errorf("You cannot change the login field for an existing User")
-				}
+			if prev.(string) != "" && d.HasChange("login") {
+				return fmt.Errorf("You cannot change the login field for an existing User")
 			}
 			//regex lovingly lifted from: http://www.golangprograms.com/regular-expression-to-validate-email-address.html
 			re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
