@@ -226,10 +226,15 @@ func userSchemaExists(index string, d *schema.ResourceData, m interface{}) (bool
 func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
+	perms := client.Schemas.Permissions()
+	perms.Principal = "SELF"
+	perms.Action = "READ_ONLY"
+
 	template := client.Schemas.CustomSubSchema()
 	template.Index = d.Get("index").(string)
 	template.Title = d.Get("title").(string)
 	template.Type = d.Get("type").(string)
+	template.Master.Type = "PROFILE_MASTER"
 	if _, ok := d.GetOk("description"); ok {
 		template.Descrption = d.Get("description").(string)
 	}
@@ -251,8 +256,16 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	if _, ok := d.GetOk("master"); ok {
 		template.Master = d.Get("master").(string)
 	}
+	if _, ok := d.GetOk("permissions"); ok {
+		perms.Action = d.Get("permissions").(string)
+	}
+	template.Permissions = append(template.Permissions, perms)
+	if _, ok := d.GetOk("enum"); ok {
+		enum := userEnumSchema(d)
+		template.Enum = enum
+	}
 
-	// enum oneof, permissions
+	// oneof
 
 	_, _, err := client.Schemas.UpdateUserCustomSubSchema(template)
 	if err != nil {
@@ -260,4 +273,14 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	}
 
 	return nil
+}
+
+func userEnumSchema(d *schema.ResourceData) []string {
+        enum := make([]string, 0)
+        if len(d.Get("enum").([]interface{})) > 0 {
+                for _, vals := range d.Get("enum").([]interface{}) {
+                        enum = append(enum, vals.(string))
+                }
+        }
+        return enum
 }
