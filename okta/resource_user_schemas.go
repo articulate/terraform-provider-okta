@@ -3,9 +3,9 @@ package okta
 import (
 	"fmt"
 	"log"
-	"regexp"
 
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/helper/validation"
 )
 
 func resourceUserSchemas() *schema.Resource {
@@ -17,7 +17,7 @@ func resourceUserSchemas() *schema.Resource {
 
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
 			if d.Get("subschema").(string) == "base" {
-				return fmt.Errorf("editing a base user subschema not supported in this terraform provider at this time")
+				return fmt.Errorf("Editing a base user subschema not supported in this terraform provider at this time")
 				// TODO: for the base subschema, description, format, enum, & oneof are not supported
 			}
 			// for an existing subschema, the subschema, index, or type fields cannot change
@@ -25,11 +25,11 @@ func resourceUserSchemas() *schema.Resource {
 			if prev.(string) != "" && d.HasChange("subschema") {
 				return fmt.Errorf("You cannot change the subschema field for an existing User SubSchema")
 			}
-			prev, _ := d.GetChange("index")
+			prev, _ = d.GetChange("index")
 			if prev.(string) != "" && d.HasChange("index") {
 				return fmt.Errorf("You cannot change the index field for an existing User SubSchema")
 			}
-			prev, _ := d.GetChange("type")
+			prev, _ = d.GetChange("type")
 			if prev.(string) != "" && d.HasChange("type") {
 				return fmt.Errorf("You cannot change the type field for an existing User SubSchema")
 			}
@@ -113,7 +113,6 @@ func resourceUserSchemas() *schema.Resource {
 
 func resourceUserSchemaCreate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Creating User Schema %v", d.Get("index").(string))
-	client := m.(*Config).oktaClient
 
 	exists, err := userSchemaExists(d.Get("index").(string), d, m)
 	if err != nil {
@@ -139,7 +138,6 @@ func resourceUserSchemaCreate(d *schema.ResourceData, m interface{}) error {
 
 func resourceUserSchemaRead(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] List User Schema %v", d.Get("index").(string))
-	client := m.(*Config).oktaClient
 
 	exists, err := userSchemaExists(d.Get("index").(string), d, m)
 	if err != nil {
@@ -156,7 +154,6 @@ func resourceUserSchemaRead(d *schema.ResourceData, m interface{}) error {
 
 func resourceUserSchemaUpdate(d *schema.ResourceData, m interface{}) error {
 	log.Printf("[INFO] Update User Schema %v", d.Get("index").(string))
-	client := m.(*Config).oktaClient
 
 	exists, err := userSchemaExists(d.Get("index").(string), d, m)
 	if err != nil {
@@ -212,7 +209,7 @@ func userSchemaExists(index string, d *schema.ResourceData, m interface{}) (bool
 	exists := false
 	subschemas, _, err := client.Schemas.GetUserSubSchemaIndex(d.Get("subschema").(string))
 	if err != nil {
-		return fmt.Errorf("[ERROR] Error Listing User Subschemas in Okta: %v", err)
+		return exists, fmt.Errorf("[ERROR] Error Listing User Subschemas in Okta: %v", err)
 	}
 	for _, key := range subschemas {
 		if key == d.Get("index").(string) {
@@ -236,25 +233,22 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	template.Type = d.Get("type").(string)
 	template.Master.Type = "PROFILE_MASTER"
 	if _, ok := d.GetOk("description"); ok {
-		template.Descrption = d.Get("description").(string)
+		template.Description = d.Get("description").(string)
 	}
 	if _, ok := d.GetOk("format"); ok {
 		template.Format = d.Get("format").(string)
 	}
 	if _, ok := d.GetOk("required"); ok {
-		template.Required = d.Get("required").(string)
-	}
-	if _, ok := d.GetOk("required"); ok {
-		template.Required = d.Get("required").(string)
+		template.Required = d.Get("required").(bool)
 	}
 	if _, ok := d.GetOk("minlength"); ok {
-		template.MinLength = d.Get("minlength").(string)
+		template.MinLength = d.Get("minlength").(int)
 	}
 	if _, ok := d.GetOk("maxlength"); ok {
-		template.MaxLength = d.Get("maxlength").(string)
+		template.MaxLength = d.Get("maxlength").(int)
 	}
 	if _, ok := d.GetOk("master"); ok {
-		template.Master = d.Get("master").(string)
+		template.Master.Type = d.Get("master").(string)
 	}
 	if _, ok := d.GetOk("permissions"); ok {
 		perms.Action = d.Get("permissions").(string)
