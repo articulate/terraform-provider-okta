@@ -21,11 +21,11 @@ func resourceUserSchemas() *schema.Resource {
 				// TODO: for the base subschema, description, format, enum, & oneof are not supported
 			}
 			// for an existing subschema, the subschema, index, or type fields cannot change
-			prev, _ := d.GetChange("subschema")
-			if prev.(string) != "" && d.HasChange("subschema") {
-				return fmt.Errorf("You cannot change the subschema field for an existing User SubSchema")
-			}
-			prev, _ = d.GetChange("index")
+			//prev, _ := d.GetChange("subschema")
+			//if prev.(string) != "" && d.HasChange("subschema") {
+			//	return fmt.Errorf("You cannot change the subschema field for an existing User SubSchema")
+			//}
+			prev, _ := d.GetChange("index")
 			if prev.(string) != "" && d.HasChange("index") {
 				return fmt.Errorf("You cannot change the index field for an existing User SubSchema")
 			}
@@ -89,20 +89,22 @@ func resourceUserSchemas() *schema.Resource {
 				Type:        schema.TypeList,
 				Optional:    true,
 				Description: "Custom Subschema enumerated value of the property. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"oneof": &schema.Schema{
 				Type:        schema.TypeList, // this is a slice of maps - maptype?
 				Optional:    true,
 				Description: "Custom Subschema json schemas. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
+				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"permissions": &schema.Schema{
-				Type:         schema.TypeList,
+				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validation.StringInSlice([]string{"HIDE", "READ_ONLY", "READ_WRITE"}, false),
 				Description:  "SubSchema permissions: HIDE, READ_ONLY, or READ_WRITE. Default = READ_ONLY",
 			},
 			"master": &schema.Schema{
-				Type:         schema.TypeList,
+				Type:         schema.TypeString,
 				Optional:     true,
 				ValidateFunc: validation.StringInSlice([]string{"PROFILE_MASTER", "OKTA"}, false),
 				Description:  "SubSchema profile manager: PROFILE_MASTER or OKTA. Default = PROFILE_MASTER",
@@ -270,11 +272,11 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 }
 
 func userEnumSchema(d *schema.ResourceData) []string {
-        enum := make([]string, 0)
-        if len(d.Get("enum").([]interface{})) > 0 {
-                for _, vals := range d.Get("enum").([]interface{}) {
-                        enum = append(enum, vals.(string))
-                }
-        }
-        return enum
+	enum := make([]string, 0)
+	if len(d.Get("enum").([]interface{})) > 0 {
+		for _, vals := range d.Get("enum").([]interface{}) {
+			enum = append(enum, vals.(string))
+		}
+	}
+	return enum
 }

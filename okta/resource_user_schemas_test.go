@@ -28,34 +28,35 @@ func TestAccOktaUserSchemas_baseCheck(t *testing.T) {
 	})
 }
 
-func TestAccOktaUserSchemas_subschemaCheck(t *testing.T) {
-	ri := acctest.RandInt()
-	config := testOktaUserSchemas(ri)
-	updatedConfig := testOktaUserSchemas_subschemaCheck(ri)
-	resourceName := "okta_user_schemas.test-" + strconv.Itoa(ri)
-
-	resource.Test(t, resource.TestCase{
-		PreCheck:     func() { testAccPreCheck(t) },
-		Providers:    testAccProviders,
-		CheckDestroy: testOktaUserSchemasDestroy,
-		Steps: []resource.TestStep{
-			{
-				Config: config,
-				Check: resource.ComposeTestCheckFunc(
-					testOktaUserSchemasExists(resourceName),
-				),
-			},
-			{
-				Config:      updatedConfig,
-				ExpectError: regexp.MustCompile("You cannot change the subschema field for an existing User SubSchema"),
-				PlanOnly:    true,
-				Check: resource.ComposeTestCheckFunc(
-					testOktaUserScemassExists(resourceName),
-				),
-			},
-		},
-	})
-}
+// uncomment this test when there's support to edit base subschemas
+//func TestAccOktaUserSchemas_subschemaCheck(t *testing.T) {
+//	ri := acctest.RandInt()
+//	config := testOktaUserSchemas(ri)
+//	updatedConfig := testOktaUserSchemas_subschemaCheck(ri)
+//	resourceName := "okta_user_schemas.test-" + strconv.Itoa(ri)
+//
+//	resource.Test(t, resource.TestCase{
+//		PreCheck:     func() { testAccPreCheck(t) },
+//		Providers:    testAccProviders,
+//		CheckDestroy: testOktaUserSchemasDestroy,
+//		Steps: []resource.TestStep{
+//			{
+//				Config: config,
+//				Check: resource.ComposeTestCheckFunc(
+//					testOktaUserSchemasExists(resourceName),
+//				),
+//			},
+//			{
+//				Config:      updatedConfig,
+//				ExpectError: regexp.MustCompile("You cannot change the subschema field for an existing User SubSchema"),
+//				PlanOnly:    true,
+//				Check: resource.ComposeTestCheckFunc(
+//					testOktaUserSchemasExists(resourceName),
+//				),
+//			},
+//		},
+//	})
+//}
 
 func TestAccOktaUserSchemas_indexCheck(t *testing.T) {
 	ri := acctest.RandInt()
@@ -79,7 +80,7 @@ func TestAccOktaUserSchemas_indexCheck(t *testing.T) {
 				ExpectError: regexp.MustCompile("You cannot change the index field for an existing User SubSchema"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaUserScemassExists(resourceName),
+					testOktaUserSchemasExists(resourceName),
 				),
 			},
 		},
@@ -108,7 +109,7 @@ func TestAccOktaUserSchemas_typeCheck(t *testing.T) {
 				ExpectError: regexp.MustCompile("You cannot change the type field for an existing User SubSchema"),
 				PlanOnly:    true,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaUserScemassExists(resourceName),
+					testOktaUserSchemasExists(resourceName),
 				),
 			},
 		},
@@ -129,7 +130,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 			{
 				Config: config,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaUsersExists(resourceName),
+					testOktaUserSchemasExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "subschema", "custom"),
 					resource.TestCheckResourceAttr(resourceName, "index", "testAcc"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "title", "terraform acceptance test"),
@@ -140,7 +141,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 			{
 				Config: updatedConfig,
 				Check: resource.ComposeTestCheckFunc(
-					testOktaUsersExists(resourceName),
+					testOktaUserSchemasExists(resourceName),
 					resource.TestCheckResourceAttr(resourceName, "subschema", "custom"),
 					resource.TestCheckResourceAttr(resourceName, "index", "testAcc"+strconv.Itoa(ri)),
 					resource.TestCheckResourceAttr(resourceName, "title", "terraform acceptance test updated"),
@@ -159,6 +160,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 }
 
 // type tests -> boolean, number, interger, & array
+// test enum & oneof
 
 func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
@@ -168,19 +170,19 @@ func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 
-		subschema, hasSchema := rs.Primary.Attributes["subschema"]
+		_, hasSchema := rs.Primary.Attributes["subschema"]
 		if !hasSchema {
-			return fmt.Errorf("[ERROR] No subschema found in state")
+			return fmt.Errorf("Error: No subschema found in state")
 		}
 		index, hasIndex := rs.Primary.Attributes["index"]
 		if !hasIndex {
 			return fmt.Errorf("Error: no index found in state")
 		}
-		title, hasTitle := rs.Primary.Attributes["title"]
+		_, hasTitle := rs.Primary.Attributes["title"]
 		if !hasTitle {
 			return fmt.Errorf("Error: no title found in state")
 		}
-		stype, hasType := rs.Primary.Attributes["type"]
+		_, hasType := rs.Primary.Attributes["type"]
 		if !hasType {
 			return fmt.Errorf("Error: no type found in state")
 		}
@@ -189,6 +191,7 @@ func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 		if err != nil {
 			return err
 		}
+		return nil
 	}
 	return nil
 }
@@ -199,19 +202,19 @@ func testOktaUserSchemasDestroy(s *terraform.State) error {
 			continue
 		}
 
-		subschema, hasSchema := rs.Primary.Attributes["subschema"]
+		_, hasSchema := rs.Primary.Attributes["subschema"]
 		if !hasSchema {
-			return fmt.Errorf("[ERROR] No subschema found in state")
+			return fmt.Errorf("Error: No subschema found in state")
 		}
 		index, hasIndex := rs.Primary.Attributes["index"]
 		if !hasIndex {
 			return fmt.Errorf("Error: no index found in state")
 		}
-		title, hasTitle := rs.Primary.Attributes["title"]
+		_, hasTitle := rs.Primary.Attributes["title"]
 		if !hasTitle {
 			return fmt.Errorf("Error: no title found in state")
 		}
-		stype, hasType := rs.Primary.Attributes["type"]
+		_, hasType := rs.Primary.Attributes["type"]
 		if !hasType {
 			return fmt.Errorf("Error: no type found in state")
 		}
@@ -228,12 +231,12 @@ func testUserSchemaExists(expected bool, index string) error {
 	client := testAccProvider.Meta().(*Config).oktaClient
 
 	exists := false
-	subschemas, _, err := client.Schemas.GetUserSubSchemaIndex(d.Get("subschema").(string))
+	subschemas, _, err := client.Schemas.GetUserSubSchemaIndex(index)
 	if err != nil {
-		return exists, fmt.Errorf("[ERROR] Error Listing User Subschemas in Okta: %v", err)
+		return fmt.Errorf("[ERROR] Error Listing User Subschemas in Okta: %v", err)
 	}
 	for _, key := range subschemas {
-		if key == d.Get("index").(string) {
+		if key == index {
 			exists = true
 			break
 		}
@@ -288,18 +291,19 @@ resource "okta_user_schemas" "test-%d" {
 `, rInt, rInt)
 }
 
-func testOktaUsers_subschemaCheck(rInt int) string {
-	return fmt.Sprintf(`
-resource "okta_user_schemas" "test-%d" {
-  subschema = "base"
-  index     = "testAcc%d"
-  title     = "terraform acceptance test"
-  type      = "string"
-}
-`, rInt, rInt)
-}
+// uncomment this test when there's support to edit base subschemas
+//func testOktaUserSchemas_subschemaCheck(rInt int) string {
+//	return fmt.Sprintf(`
+//resource "okta_user_schemas" "test-%d" {
+//  subschema = "base"
+//  index     = "testAcc%d"
+//  title     = "terraform acceptance test"
+//  type      = "string"
+//}
+//`, rInt, rInt)
+//}
 
-func testOktaUsers_indexCheck(rInt int) string {
+func testOktaUserSchemas_indexCheck(rInt int) string {
 	return fmt.Sprintf(`
 resource "okta_user_schemas" "test-%d" {
   subschema = "custom"
@@ -310,7 +314,7 @@ resource "okta_user_schemas" "test-%d" {
 `, rInt, rInt)
 }
 
-func testOktaUsers_typeCheck(rInt int) string {
+func testOktaUserSchemas_typeCheck(rInt int) string {
 	return fmt.Sprintf(`
 resource "okta_user_schemas" "test-%d" {
   subschema = "custom"
