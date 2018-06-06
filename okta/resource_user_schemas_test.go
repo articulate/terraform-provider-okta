@@ -11,52 +11,34 @@ import (
 	"github.com/hashicorp/terraform/terraform"
 )
 
-func TestAccOktaUserSchemas_baseCheck(t *testing.T) {
+func TestAccOktaUserSchemas_subschemaCheck(t *testing.T) {
 	ri := acctest.RandInt()
-	config := testOktaUserSchemas_baseCheck(ri)
+	config := testOktaUserSchemas(ri)
+	updatedConfig := testOktaUserSchemas_subschemaCheck(ri)
+	resourceName := "okta_user_schemas.test-" + strconv.Itoa(ri)
 
 	resource.Test(t, resource.TestCase{
-		PreCheck:  func() { testAccPreCheck(t) },
-		Providers: testAccProviders,
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testOktaUserSchemasDestroy,
 		Steps: []resource.TestStep{
 			{
-				Config:      config,
-				ExpectError: regexp.MustCompile("Editing a base user subschema not supported in this terraform provider at this time"),
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaUserSchemasExists(resourceName),
+				),
+			},
+			{
+				Config:      updatedConfig,
+				ExpectError: regexp.MustCompile("You cannot change the subschema field for an existing User SubSchema"),
 				PlanOnly:    true,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaUserSchemasExists(resourceName),
+				),
 			},
 		},
 	})
 }
-
-// uncomment this test when there's support to edit base subschemas
-//func TestAccOktaUserSchemas_subschemaCheck(t *testing.T) {
-//	ri := acctest.RandInt()
-//	config := testOktaUserSchemas(ri)
-//	updatedConfig := testOktaUserSchemas_subschemaCheck(ri)
-//	resourceName := "okta_user_schemas.test-" + strconv.Itoa(ri)
-//
-//	resource.Test(t, resource.TestCase{
-//		PreCheck:     func() { testAccPreCheck(t) },
-//		Providers:    testAccProviders,
-//		CheckDestroy: testOktaUserSchemasDestroy,
-//		Steps: []resource.TestStep{
-//			{
-//				Config: config,
-//				Check: resource.ComposeTestCheckFunc(
-//					testOktaUserSchemasExists(resourceName),
-//				),
-//			},
-//			{
-//				Config:      updatedConfig,
-//				ExpectError: regexp.MustCompile("You cannot change the subschema field for an existing User SubSchema"),
-//				PlanOnly:    true,
-//				Check: resource.ComposeTestCheckFunc(
-//					testOktaUserSchemasExists(resourceName),
-//				),
-//			},
-//		},
-//	})
-//}
 
 func TestAccOktaUserSchemas_indexCheck(t *testing.T) {
 	ri := acctest.RandInt()
@@ -136,6 +118,15 @@ func TestAccOktaUserSchemas(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "title", "terraform acceptance test"),
 					resource.TestCheckResourceAttr(resourceName, "type", "string"),
 					resource.TestCheckResourceAttr(resourceName, "description", "terraform acceptance test"),
+					resource.TestCheckResourceAttr(resourceName, "required", "false"),
+					resource.TestCheckResourceAttr(resourceName, "minlength", "1"),
+					resource.TestCheckResourceAttr(resourceName, "maxlength", "50"),
+					resource.TestCheckResourceAttr(resourceName, "permissions", "READ_ONLY"),
+					resource.TestCheckResourceAttr(resourceName, "master", "PROFILE_MASTER"),
+					resource.TestCheckResourceAttr(resourceName, "enum.0", "S"),
+					resource.TestCheckResourceAttr(resourceName, "enum.1", "M"),
+					resource.TestCheckResourceAttr(resourceName, "enum.2", "L"),
+					resource.TestCheckResourceAttr(resourceName, "enum.3", "XL"),
 				),
 			},
 			{
@@ -149,9 +140,13 @@ func TestAccOktaUserSchemas(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "description", "terraform acceptance test updated"),
 					resource.TestCheckResourceAttr(resourceName, "required", "true"),
 					resource.TestCheckResourceAttr(resourceName, "minlength", "1"),
-					resource.TestCheckResourceAttr(resourceName, "maxlength", "50"),
+					resource.TestCheckResourceAttr(resourceName, "maxlength", "70"),
 					resource.TestCheckResourceAttr(resourceName, "permissions", "READ_WRITE"),
 					resource.TestCheckResourceAttr(resourceName, "master", "OKTA"),
+					resource.TestCheckResourceAttr(resourceName, "enum.0", "S"),
+					resource.TestCheckResourceAttr(resourceName, "enum.1", "M"),
+					resource.TestCheckResourceAttr(resourceName, "enum.2", "L"),
+					resource.TestCheckResourceAttr(resourceName, "enum.3", "XXL"),
 				),
 			},
 		},
@@ -159,6 +154,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 }
 
 // type tests -> boolean, number, interger, & array
+// array string
 // test enum & oneof
 
 func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
@@ -257,6 +253,12 @@ resource "okta_user_schemas" "test-%d" {
   title       = "terraform acceptance test"
   type        = "string"
   description = "terraform acceptance test"
+  required    = false
+  minlength   = 1
+  maxlength   = 50
+  permissions = "READ_ONLY"
+  master      = "PROFILE_MASTER"
+  enum        = [ "S","M","L","XL" ]
 }
 `, rInt, rInt)
 }
@@ -271,14 +273,15 @@ resource "okta_user_schemas" "test-%d" {
   description = "terraform acceptance test updated"
   required    = true
   minlength   = 1
-  maxlength   = 50
+  maxlength   = 70
   permissions = "READ_WRITE"
   master      = "OKTA"
+  enum        = [ "S","M","L","XXL" ]
 }
 `, rInt, rInt)
 }
 
-func testOktaUserSchemas_baseCheck(rInt int) string {
+func testOktaUserSchemas_subschemaCheck(rInt int) string {
 	return fmt.Sprintf(`
 resource "okta_user_schemas" "test-%d" {
   subschema = "base"
@@ -288,18 +291,6 @@ resource "okta_user_schemas" "test-%d" {
 }
 `, rInt, rInt)
 }
-
-// uncomment this test when there's support to edit base subschemas
-//func testOktaUserSchemas_subschemaCheck(rInt int) string {
-//	return fmt.Sprintf(`
-//resource "okta_user_schemas" "test-%d" {
-//  subschema = "base"
-//  index     = "testAcc%d"
-//  title     = "terraform acceptance test"
-//  type      = "string"
-//}
-//`, rInt, rInt)
-//}
 
 func testOktaUserSchemas_indexCheck(rInt int) string {
 	return fmt.Sprintf(`

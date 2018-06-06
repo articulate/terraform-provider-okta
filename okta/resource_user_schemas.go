@@ -16,22 +16,49 @@ func resourceUserSchemas() *schema.Resource {
 		Delete: resourceUserSchemaDelete,
 
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
-			if d.Get("subschema").(string) == "base" {
-				return fmt.Errorf("Editing a base user subschema not supported in this terraform provider at this time")
-				// TODO: for the base subschema, description, enum, & oneof are not supported
-			}
+
 			// for an existing subschema, the subschema, index, or type fields cannot change
-			//prev, _ := d.GetChange("subschema")
-			//if prev.(string) != "" && d.HasChange("subschema") {
-			//	return fmt.Errorf("You cannot change the subschema field for an existing User SubSchema")
-			//}
-			prev, _ := d.GetChange("index")
+			prev, _ := d.GetChange("subschema")
+			if prev.(string) != "" && d.HasChange("subschema") {
+				return fmt.Errorf("You cannot change the subschema field for an existing User SubSchema")
+			}
+			prev, _ = d.GetChange("index")
 			if prev.(string) != "" && d.HasChange("index") {
 				return fmt.Errorf("You cannot change the index field for an existing User SubSchema")
 			}
 			prev, _ = d.GetChange("type")
 			if prev.(string) != "" && d.HasChange("type") {
 				return fmt.Errorf("You cannot change the type field for an existing User SubSchema")
+			}
+
+			// arraytype field only required if type field is array
+			if _, ok := d.GetOk("arraytype"); ok {
+				if d.Get("type").(string) != "array" {
+					return fmt.Errorf("arraytype field not required if type field is not array")
+				}
+			} else {
+				if d.Get("type").(string) == "array" {
+					return fmt.Errorf("arraytype field required if type field is array")
+				}
+			}
+
+			// error out in the terraform plan stage if user adds to config options not supported yet in this provider
+			if d.Get("subschema").(string) == "base" {
+				return fmt.Errorf("Editing a base user SubSchema not supported in this terraform provider at this time")
+				// todo: for the base subschema, description, enum, & oneof are not supported
+			}
+			switch d.Get("type").(string) {
+			case "boolean":
+				return fmt.Errorf("Editing a custom SubSchema of type boolean not supported in this terraform provider at this time")
+
+			case "number":
+				return fmt.Errorf("Editing a custom SubSchema of type number not supported in this terraform provider at this time")
+
+			case "interger":
+				return fmt.Errorf("Editing a custom SubSchema of type interger not supported in this terraform provider at this time")
+
+			case "array":
+				return fmt.Errorf("Editing a custom SubSchema of type array not supported in this terraform provider at this time")
 			}
 
 			return nil
@@ -59,6 +86,12 @@ func resourceUserSchemas() *schema.Resource {
 				Required:     true,
 				ValidateFunc: validation.StringInSlice([]string{"string", "boolean", "number", "integer", "array"}, false),
 				Description:  "Subschema type: string, boolean, number, integer, or array",
+			},
+			"arraytype": &schema.Schema{
+				Type:         schema.TypeString,
+				Optional:     true,
+				ValidateFunc: validation.StringInSlice([]string{"string", "number", "interger", "reference"}, false),
+				Description:  "Subschema array type: string, number, interger, reference. Type field must be an array.",
 			},
 			"description": &schema.Schema{
 				Type:        schema.TypeString,
@@ -229,6 +262,9 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	template.Title = d.Get("title").(string)
 	template.Type = d.Get("type").(string)
 	template.Master.Type = "PROFILE_MASTER"
+	if _, ok := d.GetOk("arraytype"); ok {
+		template.Items.Type = d.Get("arraytype").(string)
+	}
 	if _, ok := d.GetOk("description"); ok {
 		template.Description = d.Get("description").(string)
 	}
