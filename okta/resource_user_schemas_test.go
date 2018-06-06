@@ -147,7 +147,6 @@ func TestAccOktaUserSchemas(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "title", "terraform acceptance test updated"),
 					resource.TestCheckResourceAttr(resourceName, "type", "string"),
 					resource.TestCheckResourceAttr(resourceName, "description", "terraform acceptance test updated"),
-					resource.TestCheckResourceAttr(resourceName, "format", "email"),
 					resource.TestCheckResourceAttr(resourceName, "required", "true"),
 					resource.TestCheckResourceAttr(resourceName, "minlength", "1"),
 					resource.TestCheckResourceAttr(resourceName, "maxlength", "50"),
@@ -270,7 +269,6 @@ resource "okta_user_schemas" "test-%d" {
   title       = "terraform acceptance test updated"
   type        = "string"
   description = "terraform acceptance test updated"
-  format      = "email"
   required    = true
   minlength   = 1
   maxlength   = 50

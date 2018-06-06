@@ -18,7 +18,7 @@ func resourceUserSchemas() *schema.Resource {
 		CustomizeDiff: func(d *schema.ResourceDiff, v interface{}) error {
 			if d.Get("subschema").(string) == "base" {
 				return fmt.Errorf("Editing a base user subschema not supported in this terraform provider at this time")
-				// TODO: for the base subschema, description, format, enum, & oneof are not supported
+				// TODO: for the base subschema, description, enum, & oneof are not supported
 			}
 			// for an existing subschema, the subschema, index, or type fields cannot change
 			//prev, _ := d.GetChange("subschema")
@@ -64,11 +64,6 @@ func resourceUserSchemas() *schema.Resource {
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Custom Subschema description",
-			},
-			"format": &schema.Schema{
-				Type:        schema.TypeString,
-				Optional:    true,
-				Description: "Custom Subschema format (i.e. email)",
 			},
 			"required": &schema.Schema{
 				Type:        schema.TypeBool,
@@ -236,9 +231,6 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	template.Master.Type = "PROFILE_MASTER"
 	if _, ok := d.GetOk("description"); ok {
 		template.Description = d.Get("description").(string)
-	}
-	if _, ok := d.GetOk("format"); ok {
-		template.Format = d.Get("format").(string)
 	}
 	if _, ok := d.GetOk("required"); ok {
 		template.Required = d.Get("required").(bool)
