@@ -76,12 +76,12 @@ func resourceUserSchemas() *schema.Resource {
 				Description: "whether the Subschema is required, true or false. Default = false",
 			},
 			"minlength": &schema.Schema{
-				Type:        schema.TypeString,
+				Type:        schema.TypeInt,
 				Optional:    true,
 				Description: "Subschema of type string minlength",
 			},
 			"maxlength": &schema.Schema{
-				Type:        schema.TypeString,
+				Type:        schema.TypeInt,
 				Optional:    true,
 				Description: "Subschema of type string maxlength",
 			},

@@ -170,7 +170,7 @@ func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Not found: %s", name)
 		}
 
-		_, hasSchema := rs.Primary.Attributes["subschema"]
+		subschema, hasSchema := rs.Primary.Attributes["subschema"]
 		if !hasSchema {
 			return fmt.Errorf("Error: No subschema found in state")
 		}
@@ -187,7 +187,7 @@ func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 			return fmt.Errorf("Error: no type found in state")
 		}
 
-		err := testUserSchemaExists(false, index)
+		err := testUserSchemaExists(true, subschema, index)
 		if err != nil {
 			return err
 		}
@@ -198,11 +198,11 @@ func testOktaUserSchemasExists(name string) resource.TestCheckFunc {
 
 func testOktaUserSchemasDestroy(s *terraform.State) error {
 	for _, rs := range s.RootModule().Resources {
-		if rs.Type != "okta_user_schema" {
+		if rs.Type != "okta_user_schemas" {
 			continue
 		}
 
-		_, hasSchema := rs.Primary.Attributes["subschema"]
+		subschema, hasSchema := rs.Primary.Attributes["subschema"]
 		if !hasSchema {
 			return fmt.Errorf("Error: No subschema found in state")
 		}
@@ -219,7 +219,7 @@ func testOktaUserSchemasDestroy(s *terraform.State) error {
 			return fmt.Errorf("Error: no type found in state")
 		}
 
-		err := testUserSchemaExists(false, index)
+		err := testUserSchemaExists(false, subschema, index)
 		if err != nil {
 			return err
 		}
@@ -227,11 +227,11 @@ func testOktaUserSchemasDestroy(s *terraform.State) error {
 	return nil
 }
 
-func testUserSchemaExists(expected bool, index string) error {
+func testUserSchemaExists(expected bool, scope string, index string) error {
 	client := testAccProvider.Meta().(*Config).oktaClient
 
 	exists := false
-	subschemas, _, err := client.Schemas.GetUserSubSchemaIndex(index)
+	subschemas, _, err := client.Schemas.GetUserSubSchemaIndex(scope)
 	if err != nil {
 		return fmt.Errorf("[ERROR] Error Listing User Subschemas in Okta: %v", err)
 	}
