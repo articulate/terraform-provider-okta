@@ -58,7 +58,9 @@ func resourceUserSchemas() *schema.Resource {
 				return fmt.Errorf("Editing a custom SubSchema of type interger not supported in this terraform provider at this time")
 
 			case "array":
-				return fmt.Errorf("Editing a custom SubSchema of type array not supported in this terraform provider at this time")
+				if d.Get("arraytype").(string) != "string" {
+					return fmt.Errorf("Editing a custom SubSchema of type array (number, interger, or reference) not supported in this terraform provider at this time")
+				}
 			}
 
 			return nil
@@ -120,10 +122,10 @@ func resourceUserSchemas() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"oneof": &schema.Schema{
-				Type:        schema.TypeList, // this is a slice of maps - maptype?
+				Type:        schema.TypeMap,
 				Optional:    true,
 				Description: "Custom Subschema json schemas. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
-				Elem:        &schema.Schema{Type: schema.TypeString},
+				//Elem:        schema.TypeString,
 			},
 			"permissions": &schema.Schema{
 				Type:         schema.TypeString,
@@ -288,6 +290,8 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 		enum := userEnumSchema(d)
 		template.Enum = enum
 	}
+
+	return fmt.Errorf("%+v", d)
 
 	// oneof
 
