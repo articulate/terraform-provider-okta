@@ -1,10 +1,12 @@
 package okta
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform/helper/structure"
 	"github.com/hashicorp/terraform/helper/validation"
 )
 
@@ -122,10 +124,10 @@ func resourceUserSchemas() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 			},
 			"oneof": &schema.Schema{
-				Type:        schema.TypeMap,
-				Optional:    true,
-				Description: "Custom Subschema json schemas. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
-				//Elem:        schema.TypeString,
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "Custom Subschema json schemas. see: developer.okta.com/docs/api/resources/schemas#user-profile-schema-property-object",
+				ValidateFunc: validateJsonString,
 			},
 			"permissions": &schema.Schema{
 				Type:         schema.TypeString,
@@ -290,10 +292,25 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 		enum := userEnumSchema(d)
 		template.Enum = enum
 	}
-
-	return fmt.Errorf("%+v", d)
-
-	// oneof
+	if _, ok := d.GetOk("oneof"); ok {
+		var obj interface{}
+		err := json.Unmarshal([]byte(d.Get("oneof").(string)), &obj)
+		if err != nil {
+			fmt.Errorf("[ERROR] Error Unmarsaling oneof json string %v", err)
+		}
+		for _, v := range obj.([]interface{}) {
+			oneof := client.Schemas.OneOf()
+			for k2, v2 := range v.(map[string]interface{}) {
+				switch k2 {
+				case "const":
+					oneof.Const = v2.(string)
+				case "title":
+					oneof.Title = v2.(string)
+				}
+			}
+			template.OneOf = append(template.OneOf, oneof)
+		}
+	}
 
 	_, _, err := client.Schemas.UpdateUserCustomSubSchema(template)
 	if err != nil {
@@ -311,4 +328,11 @@ func userEnumSchema(d *schema.ResourceData) []string {
 		}
 	}
 	return enum
+}
+
+func validateJsonString(v interface{}, k string) (ws []string, errors []error) {
+	if _, err := structure.NormalizeJsonString(v); err != nil {
+		errors = append(errors, fmt.Errorf("[ERROR] %q contains an invalid JSON: %s", k, err))
+	}
+	return
 }

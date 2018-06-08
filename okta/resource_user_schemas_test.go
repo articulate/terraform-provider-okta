@@ -334,6 +334,14 @@ resource "okta_user_schemas" "test-%d" {
   permissions = "READ_ONLY"
   master      = "PROFILE_MASTER"
   enum        = [ "S","M","L","XL" ]
+  oneof = <<JSON
+[
+ {"const": "S", "title": "Small"},
+ {"const": "M", "title": "Medium"},
+ {"const": "L", "title": "Large"},
+ {"const": "XL", "title": "Extra Large"}
+]
+JSON
 }
 `, rInt, rInt)
 }
@@ -352,6 +360,14 @@ resource "okta_user_schemas" "test-%d" {
   permissions = "READ_WRITE"
   master      = "OKTA"
   enum        = [ "S","M","L","XXL" ]
+  oneof = <<JSON
+[
+ {"const": "S", "title": "Small"},
+ {"const": "M", "title": "Medium"},
+ {"const": "L", "title": "Large"},
+ {"const": "XXL", "title": "Extra Extra Large"}
+]
+JSON
 }
 `, rInt, rInt)
 }
