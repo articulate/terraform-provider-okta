@@ -249,6 +249,7 @@ func resourceUserSchemaDelete(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+// verify if custom subschema exists in Okta
 func userSchemaExists(index string, d *schema.ResourceData, m interface{}) (bool, error) {
 	client := m.(*Config).oktaClient
 
@@ -266,6 +267,7 @@ func userSchemaExists(index string, d *schema.ResourceData, m interface{}) (bool
 	return exists, err
 }
 
+// create or modify a custom subschema
 func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	client := m.(*Config).oktaClient
 
@@ -332,6 +334,7 @@ func userCustomSchemaTemplate(d *schema.ResourceData, m interface{}) error {
 	return nil
 }
 
+// unpack enum []interface{} values to a slice
 func userEnumSchema(d *schema.ResourceData) []string {
 	enum := make([]string, 0)
 	if len(d.Get("enum").([]interface{})) > 0 {
@@ -342,6 +345,8 @@ func userEnumSchema(d *schema.ResourceData) []string {
 	return enum
 }
 
+// validate if oneof value is a json string
+// this function lovingly lifted from the aws terraform provider
 func validateJsonString(v interface{}, k string) (ws []string, errors []error) {
 	if _, err := structure.NormalizeJsonString(v); err != nil {
 		errors = append(errors, fmt.Errorf("[ERROR] %q contains an invalid JSON: %s", k, err))
