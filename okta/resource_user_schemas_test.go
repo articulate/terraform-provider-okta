@@ -115,6 +115,40 @@ func TestAccOktaUserSchemas_arrayTypeDeny(t *testing.T) {
 	})
 }
 
+func TestAccOktaUserSchemas_enumValid(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaUserSchemas_enumValid(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("enum field only valid if SubSchema type is string"),
+				PlanOnly:    true,
+			},
+		},
+	})
+}
+
+func TestAccOktaUserSchemas_oneofValid(t *testing.T) {
+	ri := acctest.RandInt()
+	config := testOktaUserSchemas_oneofValid(ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:  func() { testAccPreCheck(t) },
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config:      config,
+				ExpectError: regexp.MustCompile("oneof field only valid if enum is defined"),
+				PlanOnly:    true,
+			},
+		},
+	})
+}
+
 func TestAccOktaUserSchemas_arrayTypeRequire(t *testing.T) {
 	ri := acctest.RandInt()
 	config := testOktaUserSchemas_arrayTypeRequire(ri)
@@ -456,6 +490,37 @@ resource "okta_user_schemas" "test-%d" {
   index     = "testAcc%d"
   title     = "terraform acceptance test"
   type      = "array"
+}
+`, rInt, rInt)
+}
+
+func testOktaUserSchemas_enumValid(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_user_schemas" "test-%d" {
+  subschema = "custom"
+  index     = "testAcc%d"
+  title     = "terraform acceptance test"
+  type      = "boolean"
+  enum        = [ "S","M","L","XXL" ]
+}
+`, rInt, rInt)
+}
+
+func testOktaUserSchemas_oneofValid(rInt int) string {
+	return fmt.Sprintf(`
+resource "okta_user_schemas" "test-%d" {
+  subschema = "custom"
+  index     = "testAcc%d"
+  title     = "terraform acceptance test"
+  type      = "boolean"
+  oneof = <<JSON
+[
+ {"const": "S", "title": "Small"},
+ {"const": "M", "title": "Medium"},
+ {"const": "L", "title": "Large"},
+ {"const": "XL", "title": "Extra Large"}
+]
+JSON
 }
 `, rInt, rInt)
 }

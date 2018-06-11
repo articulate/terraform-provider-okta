@@ -44,6 +44,18 @@ func resourceUserSchemas() *schema.Resource {
 				}
 			}
 
+			// enum & oneof fields only valid if subschema type is string
+			if _, ok := d.GetOk("enum"); ok {
+				if d.Get("type").(string) != "string" {
+					return fmt.Errorf("enum field only valid if SubSchema type is string")
+				}
+			} else {
+				// oneof only valid if enum defined
+				if _, ok := d.GetOk("oneof"); ok {
+					return fmt.Errorf("oneof field only valid if enum is defined")
+				}
+			}
+
 			// error out in the terraform plan stage if user adds to config options not supported yet in this provider
 			if d.Get("subschema").(string) == "base" {
 				return fmt.Errorf("Editing a base user SubSchema not supported in this terraform provider at this time")
