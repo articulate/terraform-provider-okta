@@ -195,6 +195,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "enum.1", "M"),
 					resource.TestCheckResourceAttr(resourceName, "enum.2", "L"),
 					resource.TestCheckResourceAttr(resourceName, "enum.3", "XL"),
+					resource.TestCheckResourceAttr(resourceName, "oneof", "[\n {\"const\": \"S\", \"title\": \"Small\"},\n {\"const\": \"M\", \"title\": \"Medium\"},\n {\"const\": \"L\", \"title\": \"Large\"},\n {\"const\": \"XL\", \"title\": \"Extra Large\"}\n]\n"),
 				),
 			},
 			{
@@ -215,6 +216,7 @@ func TestAccOktaUserSchemas(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "enum.1", "M"),
 					resource.TestCheckResourceAttr(resourceName, "enum.2", "L"),
 					resource.TestCheckResourceAttr(resourceName, "enum.3", "XXL"),
+					resource.TestCheckResourceAttr(resourceName, "oneof", "[\n {\"const\": \"S\", \"title\": \"Small\"},\n {\"const\": \"M\", \"title\": \"Medium\"},\n {\"const\": \"L\", \"title\": \"Large\"},\n {\"const\": \"XXL\", \"title\": \"Extra Extra Large\"}\n]\n"),
 				),
 			},
 		},
