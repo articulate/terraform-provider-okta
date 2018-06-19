@@ -1,5 +1,7 @@
 sudo: required
 language: go
+go:
+  - "1.9.x"
 install:
 - go get -d -v ./...
 script:
