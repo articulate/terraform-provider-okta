@@ -3,7 +3,7 @@ language: go
 go:
 - 1.9.x
 install:
-- go get -d -v ./...
+- make build
 script:
 - make testacc
 env:
