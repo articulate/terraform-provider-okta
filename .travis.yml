@@ -3,8 +3,8 @@ language: go
 go:
 - 1.9.x
 install:
-- make testacc
 - make deps
+- make testacc
 script:
 - make build
 env:
