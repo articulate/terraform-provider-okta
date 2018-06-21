@@ -3,10 +3,11 @@ GOFMT_FILES?=$$(find . -name '*.go' |grep -v vendor)
 
 default: build
 
-build: fmtcheck
-	curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+deps: curl -s https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 	${GOPATH}/bin/dep ensure
 	${GOPATH}/bin/dep ensure -update github.com/articulate/oktasdk-go
+
+build: fmtcheck
 	go build
 
 test: fmtcheck
