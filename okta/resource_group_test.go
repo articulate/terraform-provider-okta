@@ -1,11 +1,13 @@
 package okta
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/hashicorp/terraform/helper/acctest"
 	"github.com/hashicorp/terraform/helper/resource"
+	"github.com/hashicorp/terraform/terraform"
 	"github.com/okta/okta-sdk-golang/okta/query"
 )
 
@@ -26,7 +28,42 @@ func sweepGroups(client *testClient) error {
 	return condenseError(errorList)
 }
 
-func TestAccOktaGroupsCreate(t *testing.T) {
+// https://github.com/articulate/terraform-provider-okta/issues/220
+func TestAccOktaGroupImport(t *testing.T) {
+	ri := acctest.RandInt()
+	resourceName := fmt.Sprintf("%s.test", oktaGroup)
+	mgr := newFixtureManager(oktaGroup)
+	config := mgr.GetFixtures("okta_group_with_users.tf", ri, t)
+
+	resource.Test(t, resource.TestCase{
+		Providers: testAccProviders,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+			},
+			{
+				ResourceName: resourceName,
+				ImportState:  true,
+				ImportStateCheck: func(s []*terraform.InstanceState) error {
+					if len(s) != 1 {
+						return errors.New("Failed to import group into state")
+					}
+
+					return nil
+				},
+			},
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr(resourceName, "users.#", "4"),
+				),
+			},
+		},
+	})
+}
+
+func TestAccOktaGroupCreate(t *testing.T) {
 	ri := acctest.RandInt()
 	resourceName := fmt.Sprintf("%s.test", oktaGroup)
 	mgr := newFixtureManager("okta_group")
@@ -51,7 +88,7 @@ func TestAccOktaGroupsCreate(t *testing.T) {
 			{
 				Config: addUsersConfig,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestCheckResourceAttr(resourceName, "name", "testAcc"),
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("testAcc_%d", ri)),
 					resource.TestCheckResourceAttr(resourceName, "users.#", "4"),
 				),
 			},
