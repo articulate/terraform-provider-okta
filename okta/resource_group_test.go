@@ -34,6 +34,7 @@ func TestAccOktaGroupImport(t *testing.T) {
 	resourceName := fmt.Sprintf("%s.test", oktaGroup)
 	mgr := newFixtureManager(oktaGroup)
 	config := mgr.GetFixtures("okta_group_with_users.tf", ri, t)
+	updatedConfig := mgr.GetFixtures("okta_group_with_users_updated.tf", ri, t)
 
 	resource.Test(t, resource.TestCase{
 		Providers: testAccProviders,
@@ -42,6 +43,7 @@ func TestAccOktaGroupImport(t *testing.T) {
 				Config: config,
 			},
 			{
+				Config:       updatedConfig,
 				ResourceName: resourceName,
 				ImportState:  true,
 				ImportStateCheck: func(s []*terraform.InstanceState) error {
@@ -51,6 +53,13 @@ func TestAccOktaGroupImport(t *testing.T) {
 
 					return nil
 				},
+			},
+			{
+				Config: updatedConfig,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "name", fmt.Sprintf("testAcc_%d", ri)),
+					resource.TestCheckResourceAttr(resourceName, "users.#", "2"),
+				),
 			},
 			{
 				Config: config,
