@@ -3,8 +3,9 @@
 // To remove all membership specify an empty list. This is the only way to catch config drift
 // and support multiple ways to outline the same config.
 resource "okta_group" "test" {
-  name        = "testAcc_replace_with_uuid"
-  description = "testing, testing"
+  name         = "testAcc_replace_with_uuid"
+  description  = "testing, testing"
+  manage_users = true
 
   users = [
     "${okta_user.test1.id}",

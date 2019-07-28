@@ -23,12 +23,19 @@ func resourceGroup() *schema.Resource {
 			"name": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "Group name",
+				Description: "Group names",
 			},
 			"description": &schema.Schema{
 				Type:        schema.TypeString,
 				Optional:    true,
 				Description: "Group description",
+			},
+			"manage_users": &schema.Schema{
+				Type:        schema.TypeBool,
+				Optional:    true,
+				Default:     false,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "By flipping this on it will manage users for a group based on users attribute",
 			},
 			"users": &schema.Schema{
 				Type:        schema.TypeSet,
@@ -116,8 +123,8 @@ func fetchGroup(d *schema.ResourceData, m interface{}) (*okta.Group, error) {
 }
 
 func syncGroupUsers(d *schema.ResourceData, m interface{}) error {
-	// Only sync when the user opts in by outlining users in the group config
-	if _, exists := d.GetOkExists("users"); !exists {
+	// Only sync when the manage_users property is true
+	if !d.Get("manage_users").(bool) {
 		return nil
 	}
 	userIdList, err := listGroupUserIds(m, d.Id())
@@ -129,10 +136,8 @@ func syncGroupUsers(d *schema.ResourceData, m interface{}) error {
 }
 
 func updateGroupUsers(d *schema.ResourceData, m interface{}) error {
-	// Only sync when the user opts in by outlining users in the group config
-	// To remove all users, define an empty set
-	arr, exists := d.GetOkExists("users")
-	if !exists {
+	// Only sync when the manage_users property is true
+	if !d.Get("manage_users").(bool) {
 		return nil
 	}
 
@@ -142,7 +147,7 @@ func updateGroupUsers(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
-	rawArr := arr.(*schema.Set).List()
+	rawArr := d.Get("users").(*schema.Set).List()
 	userIdList := make([]string, len(rawArr))
 
 	for i, ifaceId := range rawArr {
