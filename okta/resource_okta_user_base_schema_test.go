@@ -28,7 +28,9 @@ func TestAccOktaUserBaseSchema_crud(t *testing.T) {
 	mgr := newFixtureManager(userBaseSchema)
 	config := mgr.GetFixtures("basic.tf", ri, t)
 	updated := mgr.GetFixtures("updated.tf", ri, t)
+	usernamePattern := mgr.GetFixtures("username.tf", ri, t)
 	resourceName := fmt.Sprintf("%s.%s", userBaseSchema, baseTestProp)
+	loginResourceName := fmt.Sprintf("%s.login", userBaseSchema)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -43,6 +45,8 @@ func TestAccOktaUserBaseSchema_crud(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "title", "First name"),
 					resource.TestCheckResourceAttr(resourceName, "type", "string"),
 					resource.TestCheckResourceAttr(resourceName, "permissions", "READ_ONLY"),
+					resource.TestCheckResourceAttr(resourceName, "min_length", "1"),
+					resource.TestCheckResourceAttr(resourceName, "max_length", "50"),
 				),
 			},
 			{
@@ -54,6 +58,8 @@ func TestAccOktaUserBaseSchema_crud(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "type", "string"),
 					resource.TestCheckResourceAttr(resourceName, "required", "true"),
 					resource.TestCheckResourceAttr(resourceName, "permissions", "READ_WRITE"),
+					resource.TestCheckResourceAttr(resourceName, "min_length", "1"),
+					resource.TestCheckResourceAttr(resourceName, "max_length", "50"),
 				),
 			},
 			{
@@ -66,6 +72,19 @@ func TestAccOktaUserBaseSchema_crud(t *testing.T) {
 
 					return nil
 				},
+			},
+			{
+				Config: usernamePattern,
+				Check: resource.ComposeTestCheckFunc(
+					testOktaUserBaseSchemasExists(loginResourceName),
+					resource.TestCheckResourceAttr(loginResourceName, "index", "login"),
+					resource.TestCheckResourceAttr(loginResourceName, "title", "Username"),
+					resource.TestCheckResourceAttr(loginResourceName, "type", "string"),
+					resource.TestCheckResourceAttr(loginResourceName, "required", "true"),
+					resource.TestCheckResourceAttr(loginResourceName, "permissions", "READ_ONLY"),
+					resource.TestCheckResourceAttr(loginResourceName, "min_length", "5"),
+					resource.TestCheckResourceAttr(loginResourceName, "max_length", "70"),
+				),
 			},
 		},
 	})

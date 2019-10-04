@@ -158,6 +158,11 @@ var (
 			Description:  "Subschema type: string, boolean, number, integer, array, or object",
 			ForceNew:     true,
 		},
+		"pattern": &schema.Schema{
+			Type:        schema.TypeString,
+			Optional:    true,
+			Description: "Restrict the username schema property to a particular regex pattern. Unlike the UI you must use a regex here.",
+		},
 		"permissions": &schema.Schema{
 			Type:         schema.TypeString,
 			Optional:     true,
@@ -171,6 +176,18 @@ var (
 			// Accepting an empty value to allow for zero value (when provisioning is off)
 			ValidateFunc: validation.StringInSlice([]string{"PROFILE_MASTER", "OKTA", ""}, false),
 			Description:  "SubSchema profile manager, if not set it will inherit its setting.",
+		},
+		"min_length": &schema.Schema{
+			Type:         schema.TypeInt,
+			Optional:     true,
+			Description:  "Subschema of type string minimum length",
+			ValidateFunc: validation.IntAtLeast(1),
+		},
+		"max_length": &schema.Schema{
+			Type:         schema.TypeInt,
+			Optional:     true,
+			Description:  "Subschema of type string maximum length",
+			ValidateFunc: validation.IntAtLeast(1),
 		},
 		"required": &schema.Schema{
 			Type:        schema.TypeBool,
@@ -220,6 +237,9 @@ func syncBaseUserSchema(d *schema.ResourceData, subschema *sdk.UserSubSchema) {
 	d.Set("title", subschema.Title)
 	d.Set("type", subschema.Type)
 	d.Set("required", subschema.Required)
+	d.Set("pattern", subschema.Pattern)
+	d.Set("min_length", subschema.MinLength)
+	d.Set("max_length", subschema.MaxLength)
 
 	if subschema.Master != nil {
 		d.Set("master", subschema.Master.Type)

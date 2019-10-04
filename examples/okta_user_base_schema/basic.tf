@@ -4,4 +4,6 @@ resource "okta_user_base_schema" "firstName" {
   permissions = "READ_ONLY"
   title       = "First name"
   type        = "string"
+  min_length  = 1
+  max_length  = 50
 }
