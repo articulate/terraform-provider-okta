@@ -28,6 +28,11 @@ func resourceAuthServerClaim() *schema.Resource {
 				Required:    true,
 				Description: "Auth server ID",
 			},
+			"pre_existing": &schema.Schema{
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  false,
+			},
 			"scopes": &schema.Schema{
 				Type:        schema.TypeSet,
 				Optional:    true,
@@ -81,14 +86,40 @@ func buildAuthServerClaim(d *schema.ResourceData) *sdk.AuthorizationServerClaim 
 func resourceAuthServerClaimCreate(d *schema.ResourceData, m interface{}) error {
 	authServerClaim := buildAuthServerClaim(d)
 	c := getSupplementFromMetadata(m)
-	responseAuthServerClaim, _, err := c.CreateAuthorizationServerClaim(d.Get("auth_server_id").(string), *authServerClaim, nil)
-	if err != nil {
-		return err
+
+	if d.Get("pre_existing").(bool) == false {
+		responseAuthServerClaim, _, err := c.CreateAuthorizationServerClaim(d.Get("auth_server_id").(string), *authServerClaim, nil)
+		if err != nil {
+			return err
+		}
+
+		d.SetId(responseAuthServerClaim.Id)
+
+		return resourceAuthServerClaimRead(d, m)
+	} else {
+		authServerClaimList, _, err := c.ListAuthorizationServerClaims(d.Get("auth_server_id").(string))
+
+		if err != nil {
+			return err
+		}
+
+		for _, AuthServerClaim := range authServerClaimList {
+			if AuthServerClaim.Name == d.Get("name").(string) {
+				d.SetId(AuthServerClaim.Id)
+				return resourceAuthServerClaimUpdate(d, m)
+			}
+		}
+
+		responseAuthServerClaim, _, err := c.CreateAuthorizationServerClaim(d.Get("auth_server_id").(string), *authServerClaim, nil)
+
+		if err != nil {
+			return err
+		}
+		d.SetId(responseAuthServerClaim.Id)
+		return resourceAuthServerClaimRead(d, m)
+
 	}
-
-	d.SetId(responseAuthServerClaim.Id)
-
-	return resourceAuthServerClaimRead(d, m)
+	return nil
 }
 
 func resourceAuthServerClaimExists(d *schema.ResourceData, m interface{}) (bool, error) {
