@@ -26,11 +26,11 @@ To check out this repository:
 2. Clone it to your machine:
 
   ```shell
-  mkdir -p ${GOPATH}/src/github.com/articulate
-  cd ${GOPATH}/src/github.com/articulate
+  mkdir -p ${GOPATH}/src/github.com/terraform-providers
+  cd ${GOPATH}/src/github.com/terraform-providers
   git clone git@github.com:${YOUR_GITHUB_USERNAME}/terraform-provider-okta.git
   cd terraform-provider-okta
-  git remote add upstream git@github.com:articulate/terraform-provider-okta.git
+  git remote add upstream git@github.com:terraform-providers/terraform-provider-okta.git
   git remote set-url --push upstream no_push
   ```
 
