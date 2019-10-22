@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/articulate/terraform-provider-okta/sdk"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/okta/okta-sdk-golang/okta/query"
 )
 

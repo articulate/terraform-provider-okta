@@ -2,8 +2,8 @@ package okta
 
 import (
 	"github.com/articulate/terraform-provider-okta/sdk"
-	"github.com/hashicorp/terraform/helper/schema"
-	"github.com/hashicorp/terraform/helper/validation"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 
 	"net/http"
 )
