@@ -15,7 +15,7 @@ import (
 	"github.com/peterhellberg/link"
 
 	articulateOkta "github.com/articulate/oktasdk-go/okta"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func buildSchema(s, t map[string]*schema.Schema) map[string]*schema.Schema {
