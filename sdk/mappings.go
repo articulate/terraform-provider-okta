@@ -1,4 +1,4 @@
-package sdk
+package idp
 
 import (
 	"fmt"
@@ -7,49 +7,25 @@ import (
 	"github.com/okta/okta-sdk-golang/okta/query"
 )
 
-type MappingProperties struct {
-	Properties struct {
-		Attribute struct {
-			Expression string `json:"expression"`
-			PushStatus string `json:"pushStatus"`
-		} `json:"attribute"`
-	} `json:"properties"`
-}
+type (
+	MappingProperty struct {
+		Expression string `json:"expression"`
+		PushStatus string `json:"pushStatus"`
+	}
 
-type Mapping []struct {
-	ID     string `json:"id"`
-	Source struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Type  string `json:"type"`
-		Links struct {
-			Self struct {
-				Href string `json:"href"`
-			} `json:"self"`
-			Schema struct {
-				Href string `json:"href"`
-			} `json:"schema"`
-		} `json:"_links"`
-	} `json:"source"`
-	Target struct {
-		ID    string `json:"id"`
-		Name  string `json:"name"`
-		Type  string `json:"type"`
-		Links struct {
-			Self struct {
-				Href string `json:"href"`
-			} `json:"self"`
-			Schema struct {
-				Href string `json:"href"`
-			} `json:"schema"`
-		} `json:"_links"`
-	} `json:"target"`
-	Links struct {
-		Self struct {
-			Href string `json:"href"`
-		} `json:"self"`
-	} `json:"_links"`
-}
+	MappingSource struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		Type string `json:"type"`
+	}
+
+	Mapping struct {
+		ID         string                      `json:"id"`
+		Source     *MappingSource              `json:"source"`
+		Target     *MappingSource              `json:"target"`
+		Properties map[string]*MappingProperty `json:"properties,omitempty"`
+	}
+)
 
 func (m *ApiSupplement) RemovePropertyMapping(mappingId, id string) (*okta.Response, error) {
 	url := fmt.Sprintf("/api/v1/mappings/%s/", mappingId)
@@ -61,32 +37,40 @@ func (m *ApiSupplement) RemovePropertyMapping(mappingId, id string) (*okta.Respo
 	return m.RequestExecutor.Do(req, nil)
 }
 
-func (m *ApiSupplement) ListProfileMappings(mappingId string) ([]*Mapping, *okta.Response, error) {
-	url := fmt.Sprintf("/api/v1/mappings", nil)
+func (m *ApiSupplement) GetProfileBySourceId(sourceId string) (*Mapping, *okta.Response, error) {
+	url := fmt.Sprintf("/api/v1/mappings?sourceId=%s", sourceId)
 	req, err := m.RequestExecutor.NewRequest("GET", url, nil)
+
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var mapping []*Mapping
-	resp, err := m.RequestExecutor.Do(req, &mapping)
-	return mapping, resp, err
+	var mappings []*Mapping
+	resp, err := m.RequestExecutor.Do(req, &mappings)
+
+	for _, mapping := range mappings {
+		if mapping.Source.ID == sourceId {
+			return m.GetProfileMapping(mapping.ID)
+		}
+	}
+
+	return nil, resp, err
 }
 
-func (m *ApiSupplement) GetSingleProfileMapping(mappingId string) ([]*Mapping, *okta.Response, error) {
+func (m *ApiSupplement) GetProfileMapping(mappingId string) (*Mapping, *okta.Response, error) {
 	url := fmt.Sprintf("/api/v1/mappings/%s", mappingId)
 	req, err := m.RequestExecutor.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var mapping []*Mapping
-	resp, err := m.RequestExecutor.Do(req, &mapping)
+	var mapping *Mapping
+	resp, err := m.RequestExecutor.Do(req, mapping)
 	return mapping, resp, err
 }
 
 func (m *ApiSupplement) AddPropertyMapping(mappingId string, body Mapping, qp *query.Params) (*Mapping, *okta.Response, error) {
-	url := fmt.Sprintf("/api/v1/mappings/%s/", mappingId)
+	url := fmt.Sprintf("/api/v1/mappings/%s", mappingId)
 	if qp != nil {
 		url = url + qp.String()
 	}
@@ -101,7 +85,7 @@ func (m *ApiSupplement) AddPropertyMapping(mappingId string, body Mapping, qp *q
 }
 
 func (m *ApiSupplement) UpdateMapping(mappingId string, body Mapping, qp *query.Params) (*Mapping, *okta.Response, error) {
-	url := fmt.Sprintf("/api/v1/mappings/%s/", mappingId)
+	url := fmt.Sprintf("/api/v1/mappings/%s", mappingId)
 	if qp != nil {
 		url = url + qp.String()
 	}
