@@ -139,6 +139,7 @@ func TestAccOktaAuthServer_gh299(t *testing.T) {
 	resource2Name := fmt.Sprintf("%s.test1", authServer)
 	mgr := newFixtureManager(authServer)
 	config := mgr.GetFixtures("dependency.tf", ri, t)
+	fullConfig := mgr.GetFixtures("issue_299.tf", ri, t)
 
 	resource.Test(t, resource.TestCase{
 		PreCheck:     func() { testAccPreCheck(t) },
@@ -156,6 +157,12 @@ func TestAccOktaAuthServer_gh299(t *testing.T) {
 					resource.TestCheckResourceAttr(resource2Name, "name", name+"1"),
 					resource.TestCheckResourceAttr(resource2Name, "audiences.#", "1"),
 					resource.TestCheckResourceAttr(resource2Name, "credentials_rotation_mode", "MANUAL"),
+				),
+			},
+			{
+				Config: fullConfig,
+				Check: resource.ComposeTestCheckFunc(
+					ensureResourceExists(resourceName, authServerExists),
 				),
 			},
 		},
