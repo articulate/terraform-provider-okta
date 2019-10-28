@@ -1,4 +1,4 @@
-package idp
+package sdk
 
 import (
 	"fmt"
@@ -37,7 +37,7 @@ func (m *ApiSupplement) RemovePropertyMapping(mappingId, id string) (*okta.Respo
 	return m.RequestExecutor.Do(req, nil)
 }
 
-func (m *ApiSupplement) GetProfileBySourceId(sourceId string) (*Mapping, *okta.Response, error) {
+func (m *ApiSupplement) GetProfileMappingBySourceId(sourceId string) (*Mapping, *okta.Response, error) {
 	url := fmt.Sprintf("/api/v1/mappings?sourceId=%s", sourceId)
 	req, err := m.RequestExecutor.NewRequest("GET", url, nil)
 
@@ -49,6 +49,7 @@ func (m *ApiSupplement) GetProfileBySourceId(sourceId string) (*Mapping, *okta.R
 	resp, err := m.RequestExecutor.Do(req, &mappings)
 
 	for _, mapping := range mappings {
+		fmt.Println(mapping.Source.ID, sourceId, mapping.ID)
 		if mapping.Source.ID == sourceId {
 			return m.GetProfileMapping(mapping.ID)
 		}
