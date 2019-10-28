@@ -1,5 +1,5 @@
 resource okta_profile_mapping test {
-  source_id = "${okta_idp_saml.test.id}"
+  source_id          = "0oaes3ebcorItLikJ0h7"
   delete_when_absent = true
 
   mappings {
@@ -12,18 +12,4 @@ resource okta_profile_mapping test {
     id         = "fullName"
     expression = "user.firstName + user.lastName"
   }
-}
-
-resource okta_idp_saml test {
-  name                     = "testAcc_replace_with_uuid"
-  acs_binding              = "HTTP-POST"
-  acs_type                 = "INSTANCE"
-  sso_url                  = "https://idp.example.com"
-  sso_destination          = "https://idp.example.com"
-  sso_binding              = "HTTP-POST"
-  username_template        = "idpuser.email"
-  kid                      = "${okta_idp_saml_key.test.id}"
-  issuer                   = "https://idp.example.com"
-  request_signature_scope  = "REQUEST"
-  response_signature_scope = "ANY"
 }
