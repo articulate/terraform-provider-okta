@@ -31,11 +31,6 @@ func resourceAuthServerPolicy() *schema.Resource {
 				Type:     schema.TypeString,
 				Required: true,
 			},
-			"pre_existing": &schema.Schema{
-				Type:     schema.TypeBool,
-				Optional: true,
-				Default:  false,
-			},
 			"status": statusSchema,
 			"priority": &schema.Schema{
 				Type:        schema.TypeInt,
@@ -74,41 +69,14 @@ func buildAuthServerPolicy(d *schema.ResourceData) *sdk.AuthorizationServerPolic
 func resourceAuthServerPolicyCreate(d *schema.ResourceData, m interface{}) error {
 	authServerPolicy := buildAuthServerPolicy(d)
 	c := getSupplementFromMetadata(m)
-
-	if d.Get("pre_existing").(bool) == false {
-		responseAuthServerPolicy, _, err := c.CreateAuthorizationServerPolicy(d.Get("auth_server_id").(string), *authServerPolicy, nil)
-		if err != nil {
-			return err
-		}
-
-		d.SetId(responseAuthServerPolicy.Id)
-
-		return resourceAuthServerPolicyRead(d, m)
-	} else {
-
-		authServerPolicyList, _, err := c.ListAuthorizationServerPolicies(d.Get("auth_server_id").(string))
-
-		if err != nil {
-			return err
-		}
-
-		for _, AuthServerPolicy := range authServerPolicyList {
-			if AuthServerPolicy.Name == d.Get("name").(string) {
-				d.SetId(AuthServerPolicy.Id)
-				return resourceAuthServerPolicyUpdate(d, m)
-			}
-		}
-
-		responseAuthServerPolicy, _, err := c.CreateAuthorizationServerPolicy(d.Get("auth_server_id").(string), *authServerPolicy, nil)
-		if err != nil {
-			return err
-		}
-
-		d.SetId(responseAuthServerPolicy.Id)
-
-		return resourceAuthServerPolicyRead(d, m)
+	responseAuthServerPolicy, _, err := c.CreateAuthorizationServerPolicy(d.Get("auth_server_id").(string), *authServerPolicy, nil)
+	if err != nil {
+		return err
 	}
-	return nil
+
+	d.SetId(responseAuthServerPolicy.Id)
+
+	return resourceAuthServerPolicyRead(d, m)
 }
 
 func resourceAuthServerPolicyExists(d *schema.ResourceData, m interface{}) (bool, error) {
