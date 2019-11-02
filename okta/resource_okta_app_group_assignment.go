@@ -101,7 +101,7 @@ func resourceAppGroupAssignmentUpdate(d *schema.ResourceData, m interface{}) err
 		return err
 	}
 
-	return resourceAppGroupAssignmentRead(d, m)
+	return resourceAppUserRead(d, m)
 }
 
 func resourceAppGroupAssignmentRead(d *schema.ResourceData, m interface{}) error {
