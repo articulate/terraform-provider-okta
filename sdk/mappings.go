@@ -66,7 +66,7 @@ func (m *ApiSupplement) GetProfileMapping(mappingId string) (*Mapping, *okta.Res
 	}
 
 	var mapping *Mapping
-	resp, err := m.RequestExecutor.Do(req, mapping)
+	resp, err := m.RequestExecutor.Do(req, &mapping)
 	return mapping, resp, err
 }
 
