@@ -2,8 +2,6 @@ package okta
 
 import (
 	"encoding/json"
-	"errors"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/okta/okta-sdk-golang/okta"
@@ -18,26 +16,7 @@ func resourceAppUser() *schema.Resource {
 		Update: resourceAppUserUpdate,
 		Delete: resourceAppUserDelete,
 		Importer: &schema.ResourceImporter{
-			State: func(d *schema.ResourceData, m interface{}) ([]*schema.ResourceData, error) {
-				parts := strings.Split(d.Id(), "/")
-				if len(parts) != 2 {
-					return nil, errors.New("Invalid resource import specifier. Use: terraform import <app_id>/<group_id>")
-				}
-
-				d.Set("app_id", parts[0])
-				d.Set("user_id", parts[1])
-
-				assignment, _, err := getOktaClientFromMetadata(m).Application.
-					GetApplicationUser(parts[0], parts[1], nil)
-
-				if err != nil {
-					return nil, err
-				}
-
-				d.SetId(assignment.Id)
-
-				return []*schema.ResourceData{d}, nil
-			},
+			State: schema.ImportStatePassthrough,
 		},
 
 		Schema: map[string]*schema.Schema{

@@ -24,9 +24,9 @@ func deleteTestApps(client *testClient) error {
 			warnings = append(warnings, warn)
 		}
 
-		resp, err := client.oktaClient.Application.DeleteApplication(app.ID)
+		_, err = client.oktaClient.Application.DeleteApplication(app.ID)
 
-		if err != nil && is404(resp.StatusCode) {
+		if err != nil {
 			warnings = append(warnings, warn)
 		}
 	}
