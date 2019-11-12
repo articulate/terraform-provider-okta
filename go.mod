@@ -30,6 +30,7 @@ require (
 	google.golang.org/api v0.10.0 // indirect
 	google.golang.org/appengine v1.6.2 // indirect
 	google.golang.org/genproto v0.0.0-20190905072037-92dd089d5514 // indirect
+	gopkg.in/ini.v1 v1.51.0
 )
 
 replace github.com/okta/okta-sdk-golang => github.com/articulate/okta-sdk-golang v1.1.1
