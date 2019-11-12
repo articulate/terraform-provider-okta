@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 
+	"gopkg.in/ini.v1"
+
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
@@ -80,6 +82,11 @@ func Provider() terraform.ResourceProvider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("OKTA_BASE_URL", "okta.com"),
 				Description: "The Okta url. (Use 'oktapreview.com' for Okta testing)",
+			},
+			"config_file": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Path to file containing Okta provider configuration. The file should be in YAML format and should use the same key names as used by the provider config in Terraform. The settings in the file will always take precedence over properties in config or environment.",
 			},
 			"backoff": {
 				Type:        schema.TypeBool,
@@ -202,20 +209,63 @@ func deprecateIncorrectNaming(d *schema.Resource, newResource string) *schema.Re
 }
 
 func providerConfigure(d *schema.ResourceData) (interface{}, error) {
-	log.Printf("[INFO] Initializing Okta client")
+	var err error
 
-	config := Config{
-		orgName:     d.Get("org_name").(string),
-		domain:      d.Get("base_url").(string),
-		apiToken:    d.Get("api_token").(string),
-		parallelism: d.Get("parallelism").(int),
-		retryCount:  d.Get("max_retries").(int),
-		maxWait:     d.Get("max_wait_seconds").(int),
-		minWait:     d.Get("min_wait_seconds").(int),
-		backoff:     d.Get("backoff").(bool),
+	log.Printf("[INFO] Initializing Okta client")
+	path := d.Get("config_file").(string)
+
+	cfg := &ini.File{}
+
+	if path != "" {
+		cfg, err = ini.Load(path)
+
+		if err != nil {
+			return nil, err
+		}
 	}
-	if err := config.loadAndValidate(); err != nil {
-		return nil, fmt.Errorf("[ERROR] Error initializing the Okta SDK clients: %v", err)
+
+	config := &Config{
+		orgName:     getConfigString(cfg, d, "org_name"),
+		domain:      getConfigString(cfg, d, "base_url"),
+		apiToken:    getConfigString(cfg, d, "api_token"),
+		parallelism: getConfigInt(cfg, d, "parallelism"),
+		retryCount:  getConfigInt(cfg, d, "max_retries"),
+		maxWait:     getConfigInt(cfg, d, "max_wait_seconds"),
+		minWait:     getConfigInt(cfg, d, "min_wait_seconds"),
+		backoff:     getConfigBool(cfg, d, "backoff"),
 	}
-	return &config, nil
+
+	err = config.loadAndValidate()
+
+	return config, err
+}
+
+func getConfigString(cfg *ini.File, d *schema.ResourceData, key string) string {
+	v := cfg.Section("").Key(key).String()
+
+	if v == "" {
+		return d.Get(key).(string)
+	}
+
+	return v
+}
+
+func getConfigInt(cfg *ini.File, d *schema.ResourceData, key string) int {
+	v, err := cfg.Section("").Key(key).Int()
+
+	if err != nil {
+		return d.Get(key).(int)
+	}
+
+	return v
+}
+
+func getConfigBool(cfg *ini.File, d *schema.ResourceData, key string) bool {
+	v, err := cfg.Section("").Key(key).Bool()
+
+	if err != nil {
+		return d.Get(key).(bool)
+	}
+
+	return v
 }
