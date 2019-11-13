@@ -14,6 +14,7 @@ import (
 const (
 	appAutoLogin           = "okta_app_auto_login"
 	appBookmark            = "okta_app_bookmark"
+	appBasicAuth           = "okta_app_basic_auth"
 	appGroupAssignment     = "okta_app_group_assignment"
 	appUser                = "okta_app_user"
 	appOAuth               = "okta_app_oauth"
@@ -116,6 +117,7 @@ func Provider() terraform.ResourceProvider {
 		ResourcesMap: map[string]*schema.Resource{
 			appAutoLogin:           resourceAppAutoLogin(),
 			appBookmark:            resourceAppBookmark(),
+			appBasicAuth:           resourceAppBasicAuth(),
 			appGroupAssignment:     resourceAppGroupAssignment(),
 			appUser:                resourceAppUser(),
 			appOAuth:               resourceAppOAuth(),
