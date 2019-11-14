@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
@@ -47,6 +48,9 @@ var profileKeys = []string{
 	"title",
 	"user_type",
 	"zip_code",
+	"password",
+	"recovery_question",
+	"recovery_answer",
 }
 
 func resourceUser() *schema.Resource {
@@ -265,6 +269,21 @@ func resourceUser() *schema.Resource {
 				Optional:    true,
 				Description: "User zipcode or postal code",
 			},
+			"password": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User Password",
+			},
+			"recovery_question": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User Password Recovery Question",
+			},
+			"recovery_answer": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User Password Recovery Answer",
+			},
 		},
 	}
 }
@@ -291,7 +310,36 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 		qp = query.NewQueryParams(query.WithActivate(false))
 	}
 
-	userBody := okta.User{Profile: profile}
+	password := d.Get("password").(string)
+	recoveryQuestion := d.Get("recovery_question").(string)
+	recoveryAnswer := d.Get("recovery_answer").(string)
+
+	p := &okta.PasswordCredential{
+		Value: password,
+	}
+
+	rq := &okta.RecoveryQuestionCredential{
+		Question: recoveryQuestion,
+		Answer:   recoveryAnswer,
+	}
+
+	uc := &okta.UserCredentials{
+		Password: p,
+	}
+
+	if recoveryQuestion != "" {
+		uc := &okta.UserCredentials{
+			Password:         p,
+			RecoveryQuestion: rq,
+		}
+		_ = uc
+	}
+
+	userBody := okta.User{
+		Profile:     profile,
+		Credentials: uc,
+	}
+
 	user, _, err := client.User.CreateUser(userBody, qp)
 
 	if err != nil {
@@ -468,9 +516,13 @@ func resourceUserExists(d *schema.ResourceData, m interface{}) (bool, error) {
 
 	_, resp, err := client.User.GetUser(d.Id())
 
-	if is404(resp.StatusCode) {
+	if err != nil {
+		return false, fmt.Errorf("[ERROR] Error Getting User from Okta: %v", err)
+	}
+
+	if strings.Contains(resp.Response.Status, "404") {
 		return false, nil
 	}
 
-	return err == nil, err
+	return true, nil
 }

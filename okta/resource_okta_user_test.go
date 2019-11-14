@@ -169,6 +169,7 @@ func TestAccOktaUser_updateAllAttributes(t *testing.T) {
 	config := mgr.GetFixtures("staged.tf", ri, t)
 	updatedConfig := mgr.GetFixtures("all_attributes.tf", ri, t)
 	minimalConfig := mgr.GetFixtures("basic.tf", ri, t)
+	minimalConfigWithCredentials := mgr.GetFixtures("basic_with_credentials.tf", ri, t)
 	resourceName := fmt.Sprintf("%s.test", oktaUser)
 	email := fmt.Sprintf("test-acc-%d@example.com", ri)
 
@@ -226,6 +227,15 @@ func TestAccOktaUser_updateAllAttributes(t *testing.T) {
 			},
 			{
 				Config: minimalConfig,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "first_name", "TestAcc"),
+					resource.TestCheckResourceAttr(resourceName, "last_name", "Smith"),
+					resource.TestCheckResourceAttr(resourceName, "login", email),
+					resource.TestCheckResourceAttr(resourceName, "email", email),
+				),
+			},
+			{
+				Config: minimalConfigWithCredentials,
 				Check: resource.ComposeTestCheckFunc(
 					resource.TestCheckResourceAttr(resourceName, "first_name", "TestAcc"),
 					resource.TestCheckResourceAttr(resourceName, "last_name", "Smith"),
