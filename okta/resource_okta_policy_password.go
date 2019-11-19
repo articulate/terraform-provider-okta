@@ -126,12 +126,13 @@ func resourcePolicyPassword() *schema.Resource {
 				Description: "If a user should be informed when their account is locked.",
 				Default:     false,
 			},
-			"send_lockout_email": {
-				Type:         schema.TypeString,
-				Optional:     true,
-				ValidateFunc: validation.StringInSlice([]string{"[\"EMAIL\"]"}, false),
-				Description:  "If e-mail should be sent when the user when their account gets locked.",
-				Default:      false,
+			"lockout_notifications": {
+				Type:        schema.TypeSet,
+				Optional:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				MinItems:    1,
+				Description: "If e-mail should be sent when the user when their account gets locked.",
+				Default:     false,
 			},
 			"question_min_length": {
 				Type:        schema.TypeInt,
@@ -226,7 +227,7 @@ func resourcePolicyPasswordRead(d *schema.ResourceData, m interface{}) error {
 		d.Set("password_max_lockout_attempts", policy.Settings.Password.Lockout.MaxAttempts)
 		d.Set("password_auto_unlock_minutes", policy.Settings.Password.Lockout.AutoUnlockMinutes)
 		d.Set("password_show_lockout_failures", policy.Settings.Password.Lockout.ShowLockoutFailures)
-		d.Set("send_lockout_email", policy.Settings.Password.Lockout.UserLockoutNotificationChannels)
+		d.Set("lockout_notifications", policy.Settings.Password.Lockout.UserLockoutNotificationChannels)
 		d.Set("question_min_length", policy.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength)
 		d.Set("recovery_email_token", policy.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes)
 		d.Set("sms_recovery", policy.Settings.Recovery.Factors.OktaSms.Status)
@@ -336,7 +337,7 @@ func buildPasswordPolicy(d *schema.ResourceData, m interface{}) *articulateOkta.
 	template.Settings.Password.Lockout.MaxAttempts = d.Get("password_max_lockout_attempts").(int)
 	template.Settings.Password.Lockout.AutoUnlockMinutes = d.Get("password_auto_unlock_minutes").(int)
 	template.Settings.Password.Lockout.ShowLockoutFailures = d.Get("password_show_lockout_failures").(bool)
-	template.Settings.Password.Lockout.UserLockoutNotificationChannels = d.Get("send_lockout_email").(string)
+	template.Settings.Password.Lockout.UserLockoutNotificationChannels = d.Get("lockout_notifications").(string)
 	template.Settings.Recovery.Factors.RecoveryQuestion.Status = d.Get("question_recovery").(string)
 	template.Settings.Recovery.Factors.RecoveryQuestion.Properties.Complexity.MinLength = d.Get("question_min_length").(int)
 	template.Settings.Recovery.Factors.OktaEmail.Properties.RecoveryToken.TokenLifetimeMinutes = d.Get("recovery_email_token").(int)
