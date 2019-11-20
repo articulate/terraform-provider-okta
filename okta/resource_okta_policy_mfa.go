@@ -221,7 +221,9 @@ func buildFactorProvider(d *schema.ResourceData, key string) *articulateOkta.Fac
 
 func syncFactor(d *schema.ResourceData, k string, f *articulateOkta.FactorProvider) {
 	if f != nil {
-		d.Set(fmt.Sprintf("%s.consent_type", k), f.Consent.Type)
-		d.Set(fmt.Sprintf("%s.enroll", k), f.Enroll.Self)
+		d.Set(k, map[string]interface{}{
+			"consent_type": f.Consent.Type,
+			"enroll":       f.Enroll.Self,
+		})
 	}
 }
