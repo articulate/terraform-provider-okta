@@ -7,7 +7,7 @@ resource okta_policy_mfa test {
   status      = "ACTIVE"
   description = "Terraform Acceptance Test MFA Policy"
 
-  okta_otp = {
+  okta_otp {
     enroll = "REQUIRED"
   }
 

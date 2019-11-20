@@ -8,15 +8,15 @@ resource okta_policy_mfa test {
   description     = "Terraform Acceptance Test MFA Policy Updated"
   groups_included = ["${data.okta_group.all.id}"]
 
-  fido_u2f = {
+  fido_u2f {
     enroll = "OPTIONAL"
   }
 
-  okta_otp = {
+  okta_otp {
     enroll = "OPTIONAL"
   }
 
-  okta_sms = {
+  okta_sms {
     enroll = "OPTIONAL"
   }
 

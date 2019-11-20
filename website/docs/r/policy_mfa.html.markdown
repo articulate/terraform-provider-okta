@@ -20,7 +20,7 @@ resource "okta_policy_mfa" "example" {
   status      = "ACTIVE"
   description = "Example"
 
-  okta_otp = {
+  okta_otp {
     enroll = "REQUIRED"
   }
 
