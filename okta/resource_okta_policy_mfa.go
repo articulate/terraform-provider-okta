@@ -15,7 +15,9 @@ func getPolicyFactorSchema(key string) map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		key: &schema.Schema{
 			Optional: true,
-			Type:     schema.TypeMap,
+			Computed: true,
+			Type:     schema.TypeList,
+			MaxItems: 1,
 			Elem: &schema.Resource{
 				Schema: map[string]*schema.Schema{
 					"enroll": &schema.Schema{
@@ -199,31 +201,22 @@ func buildMfaPolicy(d *schema.ResourceData, m interface{}) *articulateOkta.Polic
 }
 
 func buildFactorProvider(d *schema.ResourceData, key string) *articulateOkta.FactorProvider {
-	consent := d.Get(fmt.Sprintf("%s.consent_type", key)).(string)
-	enroll := d.Get(fmt.Sprintf("%s.enroll", key)).(string)
-
-	if consent == "" && enroll == "" {
+	f, ok := d.GetOk(key)
+	if !ok {
 		return nil
 	}
-
-	provider := &articulateOkta.FactorProvider{}
-
-	if consent != "" {
-		provider.Consent = articulateOkta.Consent{Type: consent}
+	factor := f.([]interface{})[0].(map[string]interface{})
+	return &articulateOkta.FactorProvider{
+		Consent: articulateOkta.Consent{Type: factor["consent_type"].(string)},
+		Enroll:  articulateOkta.Enroll{Self: factor["enroll"].(string)},
 	}
-
-	if enroll != "" {
-		provider.Enroll = articulateOkta.Enroll{Self: enroll}
-	}
-
-	return provider
 }
 
 func syncFactor(d *schema.ResourceData, k string, f *articulateOkta.FactorProvider) {
 	if f != nil {
-		d.Set(k, map[string]interface{}{
+		d.Set(k, []interface{}{map[string]interface{}{
 			"consent_type": f.Consent.Type,
 			"enroll":       f.Enroll.Self,
-		})
+		}})
 	}
 }
