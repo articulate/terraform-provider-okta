@@ -47,6 +47,9 @@ var profileKeys = []string{
 	"title",
 	"user_type",
 	"zip_code",
+	"password",
+	"recovery_question",
+	"recovery_answer",
 }
 
 func resourceUser() *schema.Resource {
@@ -265,6 +268,24 @@ func resourceUser() *schema.Resource {
 				Optional:    true,
 				Description: "User zipcode or postal code",
 			},
+			"password": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Sensitive:   true,
+				Description: "User Password",
+			},
+			"recovery_question": &schema.Schema{
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "User Password Recovery Question",
+			},
+			"recovery_answer": &schema.Schema{
+				Type:         schema.TypeString,
+				Optional:     true,
+				Sensitive:    true,
+				ValidateFunc: validation.StringLenBetween(4, 1000),
+				Description:  "User Password Recovery Answer",
+			},
 		},
 	}
 }
@@ -291,7 +312,27 @@ func resourceUserCreate(d *schema.ResourceData, m interface{}) error {
 		qp = query.NewQueryParams(query.WithActivate(false))
 	}
 
-	userBody := okta.User{Profile: profile}
+	password := d.Get("password").(string)
+	recoveryQuestion := d.Get("recovery_question").(string)
+	recoveryAnswer := d.Get("recovery_answer").(string)
+
+	uc := &okta.UserCredentials{
+		Password: &okta.PasswordCredential{
+			Value: password,
+		},
+	}
+
+	if recoveryQuestion != "" {
+		uc.RecoveryQuestion = &okta.RecoveryQuestionCredential{
+			Question: recoveryQuestion,
+			Answer:   recoveryAnswer,
+		}
+	}
+
+	userBody := okta.User{
+		Profile:     profile,
+		Credentials: uc,
+	}
 	user, _, err := client.User.CreateUser(userBody, qp)
 
 	if err != nil {
@@ -383,6 +424,9 @@ func resourceUserUpdate(d *schema.ResourceData, m interface{}) error {
 	roleChange := d.HasChange("admin_roles")
 	groupChange := d.HasChange("group_memberships")
 	userChange := hasProfileChange(d)
+	passwordChange := d.HasChange("password")
+	recoveryQuestionChange := d.HasChange("recovery_question")
+	recoveryAnswerChange := d.HasChange("recovery_answer")
 
 	// run the update status func first so a user that was previously deprovisioned
 	// can be updated further if it's status changed in it's terraform configs
@@ -423,6 +467,49 @@ func resourceUserUpdate(d *schema.ResourceData, m interface{}) error {
 		}
 		d.SetPartial("group_memberships")
 	}
+
+	if passwordChange {
+		oldPassword, newPassword := d.GetChange("password")
+
+		op := &okta.PasswordCredential{
+			Value: oldPassword.(string),
+		}
+		np := &okta.PasswordCredential{
+			Value: newPassword.(string),
+		}
+		npr := &okta.ChangePasswordRequest{
+			OldPassword: op,
+			NewPassword: np,
+		}
+
+		_, _, err := client.User.ChangePassword(d.Id(), *npr, nil)
+		if err != nil {
+			return fmt.Errorf("[ERROR] Error Updating User password in Okta: %v", err)
+		}
+	}
+
+	if recoveryQuestionChange || recoveryAnswerChange {
+		p := &okta.PasswordCredential{
+			Value: d.Get("password").(string),
+		}
+
+		rq := &okta.RecoveryQuestionCredential{
+			Question: d.Get("recovery_question").(string),
+			Answer:   d.Get("recovery_answer").(string),
+		}
+
+		nuc := &okta.UserCredentials{
+			Password:         p,
+			RecoveryQuestion: rq,
+		}
+
+		_, _, err := client.User.ChangeRecoveryQuestion(d.Id(), *nuc)
+
+		if err != nil {
+			return fmt.Errorf("[ERROR] Error Updating User password recovery credentials in Okta: %v", err)
+		}
+	}
+
 	d.Partial(false)
 
 	return resourceUserRead(d, m)
