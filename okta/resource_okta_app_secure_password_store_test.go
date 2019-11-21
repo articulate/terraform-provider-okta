@@ -14,6 +14,7 @@ func TestAccAppSecurePasswordStoreApplication_credsSchemes(t *testing.T) {
 	mgr := newFixtureManager(appSecurePasswordStore)
 	config := mgr.GetFixtures("basic.tf", ri, t)
 	updatedConfig := mgr.GetFixtures("updated.tf", ri, t)
+	sharedCreds := mgr.GetFixtures("shared_creds.tf", ri, t)
 	resourceName := fmt.Sprintf("%s.test", appSecurePasswordStore)
 
 	resource.Test(t, resource.TestCase{
@@ -42,6 +43,18 @@ func TestAccAppSecurePasswordStoreApplication_credsSchemes(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "username_field", "user"),
 					resource.TestCheckResourceAttr(resourceName, "password_field", "pass"),
 					resource.TestCheckResourceAttr(resourceName, "credentials_scheme", "EXTERNAL_PASSWORD_SYNC"),
+				),
+			},
+			{
+				Config: sharedCreds,
+				Check: resource.ComposeTestCheckFunc(
+					ensureResourceExists(resourceName, createDoesAppExist(okta.NewSecurePasswordStoreApplication())),
+					resource.TestCheckResourceAttr(resourceName, "label", buildResourceName(ri)),
+					resource.TestCheckResourceAttr(resourceName, "status", "ACTIVE"),
+					resource.TestCheckResourceAttr(resourceName, "url", "https://example.com/users/sign_in"),
+					resource.TestCheckResourceAttr(resourceName, "username_field", "user"),
+					resource.TestCheckResourceAttr(resourceName, "password_field", "password"),
+					resource.TestCheckResourceAttr(resourceName, "credentials_scheme", "SHARED_USERNAME_AND_PASSWORD"),
 				),
 			},
 		},
