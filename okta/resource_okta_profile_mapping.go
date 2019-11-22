@@ -9,6 +9,7 @@ import (
 )
 
 var (
+<<<<<<< HEAD
 	sourceSchema = &schema.Schema{
 		Type:     schema.TypeMap,
 		Optional: true,
@@ -30,6 +31,8 @@ var (
 		},
 	}
 
+=======
+>>>>>>> upstream/master
 	mappingResource = &schema.Resource{
 		Schema: map[string]*schema.Schema{
 			"id": &schema.Schema{
@@ -75,8 +78,32 @@ func resourceOktaProfileMapping() *schema.Resource {
 				Optional:    true,
 				Description: "When turned on this flag will trigger the provider to delete mapping properties that are not defined in config. By default, we do not delete missing properties.",
 			},
+<<<<<<< HEAD
 			"source": sourceSchema,
 			"target": sourceSchema,
+=======
+			"source_type": &schema.Schema{
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"source_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"target_id": &schema.Schema{
+				Type:        schema.TypeString,
+				Required:    true,
+				Description: "The target id of the mapping to manage.",
+			},
+			"target_type": &schema.Schema{
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"target_name": &schema.Schema{
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+>>>>>>> upstream/master
 			"mappings": &schema.Schema{
 				Type:     schema.TypeSet,
 				Optional: true,
@@ -86,6 +113,7 @@ func resourceOktaProfileMapping() *schema.Resource {
 	}
 }
 
+<<<<<<< HEAD
 func buildMappingProperties(rawMap interface{}) map[string]*sdk.MappingProperty {
 	res := map[string]*sdk.MappingProperty{}
 
@@ -95,6 +123,19 @@ func buildMappingProperties(rawMap interface{}) map[string]*sdk.MappingProperty 
 		res[k] = &sdk.MappingProperty{
 			Expression: m["expression"].(string),
 			PushStatus: m["push_status"].(string),
+=======
+func buildMappingProperties(set *schema.Set) map[string]*sdk.MappingProperty {
+	res := map[string]*sdk.MappingProperty{}
+
+	for _, rawMap := range set.List() {
+		if m, ok := rawMap.(map[string]interface{}); ok {
+			k := m["id"].(string)
+
+			res[k] = &sdk.MappingProperty{
+				Expression: m["expression"].(string),
+				PushStatus: m["push_status"].(string),
+			}
+>>>>>>> upstream/master
 		}
 	}
 
@@ -104,7 +145,11 @@ func buildMappingProperties(rawMap interface{}) map[string]*sdk.MappingProperty 
 func buildMapping(d *schema.ResourceData) sdk.Mapping {
 	return sdk.Mapping{
 		ID:         d.Id(),
+<<<<<<< HEAD
 		Properties: buildMappingProperties(d.Get("mappings")),
+=======
+		Properties: buildMappingProperties(d.Get("mappings").(*schema.Set)),
+>>>>>>> upstream/master
 	}
 }
 
@@ -121,7 +166,11 @@ func getProfileMapping(d *schema.ResourceData, m interface{}) (*sdk.Mapping, err
 
 func resourceProfileMappingCreate(d *schema.ResourceData, m interface{}) error {
 	client := getSupplementFromMetadata(m)
+<<<<<<< HEAD
 	mapping, _, err := client.GetProfileMappingBySourceId(d.Get("source_id").(string))
+=======
+	mapping, _, err := client.GetProfileMappingBySourceId(d.Get("source_id").(string), d.Get("target_id").(string))
+>>>>>>> upstream/master
 
 	if err != nil || mapping == nil {
 		return fmt.Errorf("failed to retrieve source, which is required to track mappings in state, error: %v", err)
@@ -130,6 +179,13 @@ func resourceProfileMappingCreate(d *schema.ResourceData, m interface{}) error {
 	d.SetId(mapping.ID)
 	newMapping := buildMapping(d)
 
+<<<<<<< HEAD
+=======
+	if d.Get("delete_when_absent").(bool) {
+		newMapping.Properties = mergeProperties(newMapping.Properties, getDeleteProperties(d, mapping.Properties))
+	}
+
+>>>>>>> upstream/master
 	_, _, err = client.UpdateMapping(mapping.ID, newMapping, nil)
 
 	if err != nil {
@@ -161,13 +217,45 @@ func resourceProfileMappingRead(d *schema.ResourceData, m interface{}) error {
 		return err
 	}
 
+<<<<<<< HEAD
 	d.Set("source", flattenMappingSource(mapping.Source))
 	d.Set("target", flattenMappingSource(mapping.Target))
+=======
+	d.Set("source_type", mapping.Source.Type)
+	d.Set("source_name", mapping.Source.Name)
+	d.Set("target_type", mapping.Target.Type)
+	d.Set("target_id", mapping.Target.ID)
+	d.Set("target_name", mapping.Target.Name)
+>>>>>>> upstream/master
 	d.Set("mappings", flattenMappingProperties(mapping.Properties))
 
 	return nil
 }
 
+<<<<<<< HEAD
+=======
+func getDeleteProperties(d *schema.ResourceData, actual map[string]*sdk.MappingProperty) map[string]*sdk.MappingProperty {
+	toDelete := map[string]*sdk.MappingProperty{}
+	config := buildMappingProperties(d.Get("mappings").(*schema.Set))
+
+	for key := range actual {
+		if _, ok := config[key]; !ok {
+			toDelete[key] = nil
+		}
+	}
+
+	return toDelete
+}
+
+func mergeProperties(target, b map[string]*sdk.MappingProperty) map[string]*sdk.MappingProperty {
+	for k, v := range b {
+		target[k] = v
+	}
+
+	return target
+}
+
+>>>>>>> upstream/master
 func flattenMappingProperties(src map[string]*sdk.MappingProperty) *schema.Set {
 	arr := []interface{}{}
 
@@ -182,6 +270,7 @@ func flattenMappingProperties(src map[string]*sdk.MappingProperty) *schema.Set {
 	return schema.NewSet(schema.HashResource(mappingResource), arr)
 }
 
+<<<<<<< HEAD
 func flattenMappingSource(src *sdk.MappingSource) map[string]interface{} {
 	return map[string]interface{}{
 		"id":   src.ID,
@@ -190,11 +279,27 @@ func flattenMappingSource(src *sdk.MappingSource) map[string]interface{} {
 	}
 }
 
+=======
+>>>>>>> upstream/master
 func resourceProfileMappingUpdate(d *schema.ResourceData, m interface{}) error {
 	client := getSupplementFromMetadata(m)
 	newMapping := buildMapping(d)
 
+<<<<<<< HEAD
 	_, _, err := client.UpdateMapping(d.Id(), newMapping, nil)
+=======
+	mapping, _, err := client.GetProfileMappingBySourceId(d.Get("source_id").(string), d.Get("target_id").(string))
+
+	if err != nil || mapping == nil {
+		return fmt.Errorf("failed to retrieve source, which is required to track mappings in state, error: %v", err)
+	}
+
+	if d.Get("delete_when_absent").(bool) {
+		newMapping.Properties = mergeProperties(newMapping.Properties, getDeleteProperties(d, mapping.Properties))
+	}
+
+	_, _, err = client.UpdateMapping(d.Id(), newMapping, nil)
+>>>>>>> upstream/master
 
 	if err != nil {
 		return err

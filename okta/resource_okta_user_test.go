@@ -237,6 +237,45 @@ func TestAccOktaUser_updateAllAttributes(t *testing.T) {
 	})
 }
 
+func TestAccOktaUser_updateCredentials(t *testing.T) {
+	ri := acctest.RandInt()
+	mgr := newFixtureManager(oktaUser)
+	config := mgr.GetFixtures("basic_with_credentials.tf", ri, t)
+	minimalConfigWithCredentials := mgr.GetFixtures("basic_with_credentials_updated.tf", ri, t)
+	resourceName := fmt.Sprintf("%s.test", oktaUser)
+	email := fmt.Sprintf("test-acc-%d@example.com", ri)
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: testAccCheckUserDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: config,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "first_name", "TestAcc"),
+					resource.TestCheckResourceAttr(resourceName, "last_name", "Smith"),
+					resource.TestCheckResourceAttr(resourceName, "login", email),
+					resource.TestCheckResourceAttr(resourceName, "email", email),
+					resource.TestCheckResourceAttr(resourceName, "password", "Abcd1234"),
+					resource.TestCheckResourceAttr(resourceName, "recovery_answer", "Forty Two"),
+				),
+			},
+			{
+				Config: minimalConfigWithCredentials,
+				Check: resource.ComposeTestCheckFunc(
+					resource.TestCheckResourceAttr(resourceName, "first_name", "TestAcc"),
+					resource.TestCheckResourceAttr(resourceName, "last_name", "Smith"),
+					resource.TestCheckResourceAttr(resourceName, "login", email),
+					resource.TestCheckResourceAttr(resourceName, "email", email),
+					resource.TestCheckResourceAttr(resourceName, "password", "SuperSecret007"),
+					resource.TestCheckResourceAttr(resourceName, "recovery_answer", "Asterisk"),
+				),
+			},
+		},
+	})
+}
+
 func TestAccOktaUser_statusDeprovisioned(t *testing.T) {
 	ri := acctest.RandInt()
 	mgr := newFixtureManager(oktaUser)

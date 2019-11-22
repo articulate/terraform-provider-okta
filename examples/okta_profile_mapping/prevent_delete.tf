@@ -1,23 +1,7 @@
 resource okta_profile_mapping test {
-<<<<<<< HEAD
-  source_id          = "0oaes3ebcorItLikJ0h7"
-  delete_when_absent = true
-
-  mappings {
-    id          = "nickName"
-    expression  = "user.nickName"
-    push_status = "PUSH"
-  }
-
-  mappings {
-    id         = "fullName"
-    expression = "user.firstName + user.lastName"
-  }
-}
-=======
   source_id          = "${okta_idp_social.google.id}"
   target_id          = "${data.okta_user_profile_mapping_source.user.id}"
-  delete_when_absent = true
+  delete_when_absent = false
 
   mappings {
     id         = "firstName"
@@ -30,6 +14,11 @@ resource okta_profile_mapping test {
   }
 
   mappings {
+    id         = "profileUrl"
+    expression = "appuser.profileUrl"
+  }
+
+  mappings {
     id         = "email"
     expression = "appuser.email"
   }
@@ -37,6 +26,26 @@ resource okta_profile_mapping test {
   mappings {
     id         = "login"
     expression = "appuser.email"
+  }
+
+  mappings {
+    id         = "honorificPrefix"
+    expression = "appuser.honorificPrefix"
+  }
+
+  mappings {
+    id         = "honorificSuffix"
+    expression = "appuser.honorificSuffix"
+  }
+
+  mappings {
+    id         = "middleName"
+    expression = "appuser.middleName"
+  }
+
+  mappings {
+    id         = "displayName"
+    expression = "appuser.displayName"
   }
 }
 
@@ -57,4 +66,3 @@ resource okta_idp_social google {
 }
 
 data okta_user_profile_mapping_source user {}
->>>>>>> upstream/master
