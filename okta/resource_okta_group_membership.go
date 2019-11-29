@@ -18,7 +18,7 @@ func resourceGroupMembership() *schema.Resource {
 			"user_id": &schema.Schema{
 				Type:        schema.TypeString,
 				Required:    true,
-				Description: "Use to associate group with",
+				Description: "User to associate group with",
 			},
 			"group_id": &schema.Schema{
 				Type:        schema.TypeString,
