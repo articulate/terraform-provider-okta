@@ -8,4 +8,5 @@ resource okta_policy_password test {
   description            = "Terraform Acceptance Test Password Policy"
   password_history_count = 4
   groups_included        = ["${data.okta_group.all.id}"]
+  lockout_notification_channels = ["EMAIL"]
 }
