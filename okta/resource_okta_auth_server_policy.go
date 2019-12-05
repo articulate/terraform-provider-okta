@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/articulate/terraform-provider-okta/sdk"
-	"github.com/hashicorp/terraform/helper/schema"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
 
 func resourceAuthServerPolicy() *schema.Resource {

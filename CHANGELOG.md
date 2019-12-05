@@ -225,3 +225,9 @@ BUG FIXES:
 
 * Ensure we safely sync auth server properties. [GH-299]
 * MANUAL rotation mode can only be set on an auth server on update. Ensure we run update after create for that scenario. [GH-287]
+
+## 3.0.30
+
+ENHANCEMENT:
+
+* Update to new separate Terraform SDK [GH-307]
