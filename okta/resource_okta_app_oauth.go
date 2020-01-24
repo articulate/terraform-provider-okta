@@ -102,15 +102,22 @@ func resourceAppOAuth() *schema.Resource {
 				Description:  "The type of client application.",
 			},
 			"client_id": &schema.Schema{
-				Type:        schema.TypeString,
-				Computed:    true,
-				Description: "OAuth client ID.",
-			},
-			"custom_client_id": &schema.Schema{
-				Type:        schema.TypeString,
+				Type: schema.TypeString,
+				// This field is Optional + Computed because okta automatically sets the
+				// client_id value if none is specified during creation.
+				// If the client_id is set after creation, the resource will be recreated only if its different from
+				// the computed client_id.
 				Optional:    true,
 				ForceNew:    true,
-				Description: "This property allows you to set your client_id.",
+				Computed:    true,
+				Description: "OAuth client ID. If set during creation, app is created with this id.",
+			},
+			"custom_client_id": &schema.Schema{
+				Type:          schema.TypeString,
+				Optional:      true,
+				ConflictsWith: []string{"client_id"},
+				Description:   "**Deprecated** This property allows you to set your client_id during creation. NOTE: updating after creation will be a no-op, use client_id for that behavior instead.",
+				Deprecated:    "This field is being replaced by client_id. Please set that field instead.",
 			},
 			"omit_secret": &schema.Schema{
 				Type:     schema.TypeBool,
