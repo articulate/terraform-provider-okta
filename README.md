@@ -1,5 +1,9 @@
 # Terraform Provider Okta
 
+## It's Official
+
+[We've moved!](https://www.terraform.io/docs/providers/okta/index.html). In an effort to provide better support for this project, Hashicorp and Okta have helped us make this an official provider.
+
 - [![Build Status](https://travis-ci.org/articulate/terraform-provider-okta.svg?branch=master)](https://travis-ci.org/articulate/terraform-provider-okta)
 - Website: https://www.terraform.io
 - [![Gitter chat](https://badges.gitter.im/hashicorp-terraform/Lobby.png)](https://gitter.im/hashicorp-terraform/Lobby)
