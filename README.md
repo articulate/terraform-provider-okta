@@ -1,8 +1,8 @@
 # Terraform Provider Okta
 
-## :tada:__It's Official__:tada:
+## :tada: __It's Official__ :tada:
 
-[We've moved!](https://www.terraform.io/docs/providers/okta/index.html). In an effort to provide better support for this project, Hashicorp and Okta have helped us make this an official provider. This repo will only be use for historical reference and will be read-only. Please submit new Issues and PRs at [Hashicorp](https://github.com/terraform-providers/terraform-provider-okta).
+[We've moved!](https://www.terraform.io/docs/providers/okta/index.html) In an effort to provide better support for this project, Hashicorp and Okta have helped us make this an official provider. This repo will only be use for historical reference and will be read-only. Please submit new Issues and PRs at [Hashicorp](https://github.com/terraform-providers/terraform-provider-okta).
 
 - [![Build Status](https://travis-ci.org/articulate/terraform-provider-okta.svg?branch=master)](https://travis-ci.org/articulate/terraform-provider-okta)
 - Website: https://www.terraform.io
